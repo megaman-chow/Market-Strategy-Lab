@@ -1,0 +1,438 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Strategy Lab Manager</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&display=swap');
+        
+        :root {
+            --bg: #07090c;
+            --panel: #0b0e13;
+            --border: #141c26;
+            --text: #a8bdd0;
+            --dim: #324558;
+            --green: #00e676;
+            --red: #ff1744;
+            --blue: #40c4ff;
+            --amber: #ffd740;
+            --purple: #ce93d8;
+            --teal: #64ffda;
+            --orange: #ff9100;
+        }
+        
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            background: var(--bg);
+            color: var(--text);
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            font-size: 24px;
+            color: #fff;
+            margin-bottom: 10px;
+            letter-spacing: 0.1em;
+        }
+        
+        .subtitle {
+            color: var(--dim);
+            margin-bottom: 30px;
+        }
+        
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .panel-title {
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--dim);
+            margin-bottom: 15px;
+        }
+        
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text);
+            font-family: inherit;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 8px 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+            letter-spacing: 0.05em;
+        }
+        
+        .btn:hover {
+            border-color: var(--blue);
+            color: var(--blue);
+        }
+        
+        .btn.primary {
+            border-color: var(--green);
+            color: var(--green);
+        }
+        
+        .btn.primary:hover {
+            background: rgba(0, 230, 118, 0.1);
+        }
+        
+        .btn.danger {
+            border-color: var(--red);
+            color: var(--red);
+        }
+        
+        .btn.danger:hover {
+            background: rgba(255, 23, 68, 0.1);
+        }
+        
+        select {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            font-family: inherit;
+            font-size: 11px;
+            padding: 8px 12px;
+            cursor: pointer;
+        }
+        
+        select:focus {
+            outline: none;
+            border-color: var(--blue);
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th, td {
+            text-align: left;
+            padding: 10px;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        th {
+            font-size: 9px;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--dim);
+            font-weight: 700;
+        }
+        
+        td {
+            font-size: 10px;
+        }
+        
+        tr:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
+        
+        .rank {
+            font-weight: 700;
+            color: var(--dim);
+        }
+        
+        .rank.top3 {
+            color: var(--amber);
+        }
+        
+        .score {
+            font-size: 14px;
+            font-weight: 700;
+        }
+        
+        .score.elite {
+            color: var(--green);
+        }
+        
+        .score.strong {
+            color: var(--teal);
+        }
+        
+        .score.decent {
+            color: var(--amber);
+        }
+        
+        .score.weak {
+            color: var(--orange);
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border: 1px solid currentColor;
+            font-size: 8px;
+            letter-spacing: 0.08em;
+            margin-right: 4px;
+        }
+        
+        .badge.v1 {
+            color: var(--orange);
+        }
+        
+        .badge.v2 {
+            color: var(--teal);
+        }
+        
+        .badge.inv {
+            color: var(--purple);
+        }
+        
+        .status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border: 1px solid currentColor;
+        }
+        
+        .status.idle {
+            color: var(--dim);
+        }
+        
+        .status.running {
+            color: var(--green);
+        }
+        
+        .status.running .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--green);
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+        
+        .metric {
+            display: inline-block;
+            margin-right: 15px;
+        }
+        
+        .metric-label {
+            font-size: 8px;
+            color: var(--dim);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+        
+        .metric-value {
+            font-size: 11px;
+            font-weight: 600;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--dim);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔬 STRATEGY LAB MANAGER</h1>
+        <p class="subtitle">Automated backtesting & live trading with model selection</p>
+        
+        <div class="panel">
+            <div class="panel-title">⚙️ CONTROLS</div>
+            
+            <div class="btn-group">
+                <select id="timeframeSelect">
+                    <option value="5m">5 Minutes</option>
+                    <option value="15m">15 Minutes</option>
+                    <option value="1h" selected>1 Hour</option>
+                    <option value="4h">4 Hours</option>
+                    <option value="1d">1 Day</option>
+                </select>
+                
+                <button class="btn primary" onclick="runBacktest()">🔬 RUN BACKTEST</button>
+                <button class="btn primary" onclick="startLive()">🚀 START LIVE (TOP 10)</button>
+                <button class="btn danger" onclick="stopLive()">⏸ STOP LIVE</button>
+            </div>
+            
+            <div class="status idle" id="status">
+                <span>IDLE</span>
+            </div>
+        </div>
+        
+        <div class="panel">
+            <div class="panel-title">🏆 LEADERBOARD</div>
+            
+            <div id="leaderboard" class="loading">
+                Click "RUN BACKTEST" to generate rankings
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const ws = new WebSocket('ws://localhost:3001');
+        
+        ws.onopen = () => {
+            console.log('✓ Connected to Lab Server');
+            loadLeaderboard();
+        };
+        
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            console.log('📨', data);
+            
+            if (data.type === 'backtest_complete') {
+                setStatus('idle', 'BACKTEST COMPLETE');
+                loadLeaderboard();
+            } else if (data.type === 'live_started') {
+                setStatus('running', '🔴 LIVE TRADING');
+            } else if (data.type === 'live_stopped') {
+                setStatus('idle', 'LIVE STOPPED');
+            } else if (data.type === 'new_candle') {
+                loadLeaderboard();
+            }
+        };
+        
+        async function runBacktest() {
+            const timeframe = document.getElementById('timeframeSelect').value;
+            setStatus('running', 'RUNNING BACKTEST...');
+            
+            try {
+                const res = await fetch('/api/lab/backtest', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ timeframe })
+                });
+                
+                const data = await res.json();
+                console.log(data);
+            } catch (error) {
+                console.error(error);
+                setStatus('idle', 'ERROR');
+            }
+        }
+        
+        async function startLive() {
+            const timeframe = document.getElementById('timeframeSelect').value;
+            
+            try {
+                const res = await fetch('/api/lab/live/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ timeframe, topN: 10 })
+                });
+                
+                const data = await res.json();
+                console.log(data);
+            } catch (error) {
+                console.error(error);
+            }
+        }
+        
+        async function stopLive() {
+            try {
+                const res = await fetch('/api/lab/live/stop', {
+                    method: 'POST'
+                });
+                
+                const data = await res.json();
+                console.log(data);
+            } catch (error) {
+                console.error(error);
+            }
+        }
+        
+        async function loadLeaderboard() {
+            const timeframe = document.getElementById('timeframeSelect').value;
+            
+            try {
+                const res = await fetch(`/api/lab/leaderboard?timeframe=${timeframe}`);
+                const data = await res.json();
+                
+                if (!data.length) {
+                    document.getElementById('leaderboard').innerHTML = '<div class="loading">No results yet. Run a backtest first.</div>';
+                    return;
+                }
+                
+                renderLeaderboard(data);
+            } catch (error) {
+                console.error(error);
+            }
+        }
+        
+        function renderLeaderboard(data) {
+            const top20 = data.slice(0, 20);
+            
+            let html = '<table><thead><tr>';
+            html += '<th>Rank</th><th>Strategy</th><th>Score</th><th>Win Rate</th>';
+            html += '<th>Sharpe</th><th>Profit Factor</th><th>Trades</th><th>Final Balance</th>';
+            html += '</tr></thead><tbody>';
+            
+            top20.forEach((model, i) => {
+                const rank = i + 1;
+                const p = model.performance;
+                
+                let scoreClass = 'weak';
+                if (p.score >= 8.5) scoreClass = 'elite';
+                else if (p.score >= 7) scoreClass = 'strong';
+                else if (p.score >= 5.5) scoreClass = 'decent';
+                
+                html += '<tr>';
+                html += `<td><span class="rank ${rank <= 3 ? 'top3' : ''}">#${rank}</span></td>`;
+                html += `<td>`;
+                html += `<span class="badge ${model.strategy}">${model.strategy.toUpperCase()}</span>`;
+                html += `<span class="badge">${model.timeframe}</span>`;
+                if (model.invertLogic) html += `<span class="badge inv">INV</span>`;
+                html += `<span class="badge">TP${model.tpDistance}</span>`;
+                html += `</td>`;
+                html += `<td><span class="score ${scoreClass}">${p.score.toFixed(2)}</span></td>`;
+                html += `<td style="color: ${p.winRate >= 0.55 ? 'var(--green)' : 'var(--text)'}">${(p.winRate * 100).toFixed(1)}%</td>`;
+                html += `<td style="color: ${p.sharpeRatio >= 1 ? 'var(--green)' : 'var(--text)'}">${p.sharpeRatio.toFixed(2)}</td>`;
+                html += `<td style="color: ${p.profitFactor >= 1.5 ? 'var(--green)' : 'var(--text)'}">${p.profitFactor >= 999 ? '∞' : p.profitFactor.toFixed(2)}</td>`;
+                html += `<td>${p.totalTrades}</td>`;
+                html += `<td style="color: ${p.finalBalance > 10000 ? 'var(--green)' : 'var(--red)'}">$${p.finalBalance.toFixed(2)}</td>`;
+                html += '</tr>';
+            });
+            
+            html += '</tbody></table>';
+            document.getElementById('leaderboard').innerHTML = html;
+        }
+        
+        function setStatus(type, text) {
+            const el = document.getElementById('status');
+            el.className = `status ${type}`;
+            
+            if (type === 'running') {
+                el.innerHTML = `<div class="dot"></div><span>${text}</span>`;
+            } else {
+                el.innerHTML = `<span>${text}</span>`;
+            }
+        }
+        
+        document.getElementById('timeframeSelect').addEventListener('change', loadLeaderboard);
+    </script>
+</body>
+</html>
