@@ -583,10 +583,35 @@ class StrategyLabManager {
     const ranked = await this.getLeaderboard(timeframe);
     const winners = ranked.slice(0, topN);
 
+    if (!winners.length) {
+      console.log('⚠️  No ranked models found — run a backtest first.');
+      return;
+    }
+
     console.log(`📈 Selected top ${winners.length} models:`);
     winners.forEach((w, i) => {
       console.log(`  ${i + 1}. ${w.name} - Score: ${w.performance.score.toFixed(2)}`);
     });
+
+    // Hydrate any winners not already in memory (cold start after process restart)
+    const missing = winners.filter(w => !this.models.has(w.id));
+    if (missing.length > 0) {
+      console.log(`♻️  Hydrating ${missing.length} model(s) from historical data...`);
+      const candles = await this.loadCandles(timeframe);
+      for (const w of missing) {
+        const model = new StrategyLabModel({
+          id: w.id,
+          name: w.name,
+          timeframe: w.timeframe,
+          strategy: w.strategy,
+          invertLogic: w.invertLogic,
+          tpDistance: w.tpDistance,
+        });
+        model.backtest(candles);
+        this.models.set(w.id, model);
+      }
+      console.log(`✅ Hydrated ${missing.length} model(s)`);
+    }
 
     this.isRunning = true;
 
@@ -861,7 +886,7 @@ async function startup() {
     console.log(`\n📡 Lab Server: http://localhost:${PORT}`);
     console.log(`🔌 WebSocket: ws://localhost:${PORT}`);
     console.log(`📊 Database: strategy_lab.db\n`);
-    console.log(`✨ Ready! Visit /labManager.html to start\n`);
+    console.log(`✨ Ready! Visit /StrategyLabManager.html to start\n`);
   });
 }
 

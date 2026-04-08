@@ -1380,7 +1380,154 @@
         }
     }
 
-    loadData();
+    // ═══════════════════════════════════════════════════════
+    //  TRADER VIEW MODE (served from :3000 dashboard "VIEW")
+    // ═══════════════════════════════════════════════════════
+    const qs = new URLSearchParams(location.search);
+    const traderId = qs.get('trader');
+    let traderWS = null;
+
+    function setActiveTF(tfKey){
+        tf = tfKey;
+        document.querySelectorAll('#tfTabs .tf-btn').forEach(b => {
+            b.classList.toggle('active', b.dataset.tf === tfKey);
+        });
+    }
+
+    function setTpUI(v){
+        tpDist = Number(v) || 50;
+        document.querySelectorAll('.tp-btn').forEach(b => {
+            b.classList.toggle('active', Number(b.dataset.tp) === tpDist);
+        });
+    }
+
+    function setInvertUI(on){
+        invertLogic = !!on;
+        const btn = document.getElementById('invBtn');
+        btn.textContent = invertLogic ? '⇄ INVERT ON' : '⇄ INVERT OFF';
+        btn.style.color = invertLogic ? 'var(--purple)' : 'var(--amber)';
+        btn.style.borderColor = invertLogic ? 'var(--purple)' : 'var(--amber)';
+    }
+
+    function setModeUI(m){
+        mode = m;
+        document.querySelectorAll('.strat-btn').forEach(b => b.classList.remove('active'));
+        const target = document.querySelector(`.strat-btn.${m}`);
+        if (target) target.classList.add('active');
+    }
+
+    function fmtMoney(n){ return `$${Number(n||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`; }
+
+    function updateHUDFromServerState(state){
+        if(!state) return;
+        document.getElementById('hBal').textContent = fmtMoney(state.balance ?? state.bal ?? 10000);
+        const pnl = (state.pnl != null) ? state.pnl : ((state.balance ?? 10000) - INIT);
+        const pnlEl = document.getElementById('hPnl');
+        pnlEl.textContent = `${pnl>=0?'+':''}${fmtMoney(pnl).replace('$','')}`;
+        pnlEl.className = `asv ${pnl>=0?'green':'red'}`;
+
+        // If server provides winRate/trades, use them; otherwise derive from loaded trades.
+        if (state.winRate != null) {
+            document.getElementById('hWr').textContent = `${(state.winRate*100).toFixed(1)}%`;
+        }
+        if (state.trades != null) {
+            document.getElementById('hTrades').textContent = `${state.trades} · 0`;
+        }
+    }
+
+    function renderServerTrades(trades, strategy){
+        const tlog = document.getElementById('tlog');
+        tlog.innerHTML = '';
+        const sorted = [...(trades||[])].sort((a,b)=>b.entryTime-a.entryTime);
+        const v1c = strategy==='v1' ? sorted.length : 0;
+        const v2c = strategy==='v2' ? sorted.length : 0;
+        document.getElementById('hTrades').textContent = `${v1c} · ${v2c}`;
+        document.getElementById('logCount').textContent = `V1:${v1c}  V2:${v2c}  Live trades:—`;
+
+        sorted.forEach((t, idx) => {
+            const dir = t.direction === 'bullish' ? 'B' : 'S';
+            const strat = (t.strategy || strategy || 'v2').toUpperCase();
+            const src = t.isLive ? 'LIVE' : 'HIST';
+            const row = document.createElement('div');
+            row.className = `lr ${t.isLive ? 'is-live' : ''}`;
+            row.innerHTML = `
+                <span class="rank">${sorted.length-idx}</span>
+                <span class="${(t.strategy||strategy)==='v1'?'sv1':'sv2'}">${strat}</span>
+                <span class="db ${dir}">${dir}</span>
+                <span style="color:${t.hit==='TP'?'var(--green)':'var(--red)'};font-weight:700">${t.hit||'—'}</span>
+                <span>${new Date(t.entryTime).toLocaleString()}</span>
+                <span>${Number(t.entryPrice||0).toFixed(0)}</span>
+                <span>${Number(t.exitPrice||0).toFixed(0)}</span>
+                <span class="${(t.result||0)>=0?'green':'red'}">${((t.result||0)*100).toFixed(2)}%</span>
+                <span class="${(t.pnl||0)>=0?'green':'red'}">${(t.pnl||0).toFixed(2)}</span>
+                <span class="${t.isLive?'src-live':'src-hist'}">${src}</span>
+                <span style="color:var(--dim)">—</span>
+            `;
+            tlog.appendChild(row);
+        });
+    }
+
+    async function loadTraderView(id){
+        const lm=document.getElementById('lmsg');
+        lm.className=''; lm.textContent='⬡ LOADING TRADER…';
+        setLiveBadge('paused','⬡ TRADER VIEW');
+        stopLive(); pauseR();
+
+        try{
+            const traders = await (await fetch('/api/traders')).json();
+            const t = traders.find(x => x.id === id);
+            if(!t) throw new Error('Trader not found');
+
+            setActiveTF(t.timeframe || '1h');
+            setTpUI(t.tpDistance || 50);
+            setInvertUI(!!t.invertLogic);
+            setModeUI((t.strategy === 'v1' || t.strategy === 'v2') ? t.strategy : 'v2');
+
+            // Update HUD from server state
+            updateHUDFromServerState(t.state);
+            if (t.state?.winRate != null) {
+                document.getElementById('hWr').textContent = `${(t.state.winRate*100).toFixed(1)}%`;
+            }
+
+            // Load trades table
+            const trades = await (await fetch(`/api/traders/${id}/trades`)).json();
+            renderServerTrades(trades, t.strategy);
+
+            // Live updates
+            traderWS = new WebSocket(`ws://${location.host}`);
+            traderWS.onopen = () => {
+                setLiveBadge('live','🔴 LIVE (SERVER)');
+                lm.className='ok'; lm.textContent=`✓ Viewing trader ${t.name} (${id.slice(0,8)}…)`;
+            };
+            traderWS.onclose = () => { setLiveBadge('error','⚠ WS CLOSED'); };
+            traderWS.onerror = () => { setLiveBadge('error','⚠ WS ERROR'); };
+            traderWS.onmessage = async (ev) => {
+                try{
+                    const msg = JSON.parse(ev.data);
+                    if (msg.traderId !== id) return;
+                    if (msg.type === 'new_candle' && msg.state) {
+                        updateHUDFromServerState(msg.state);
+                    }
+                    if (msg.type === 'position_closed' && msg.trade) {
+                        // Append newest trade without reloading everything
+                        const current = Array.from(document.querySelectorAll('#tlog .lr')).length;
+                        const trades = await (await fetch(`/api/traders/${id}/trades`)).json();
+                        if (trades.length !== current) renderServerTrades(trades, t.strategy);
+                        updateHUDFromServerState(msg.state);
+                    }
+                }catch{}
+            };
+        }catch(err){
+            setLiveBadge('error','⚠ TRADER LOAD FAIL');
+            lm.className='warn'; lm.textContent=`⚠ ${err.message || err}`;
+            toast(`Failed to load trader: ${err.message || err}`,'red');
+            // Fallback to standalone lab mode
+            loadData();
+        }
+    }
+
+    if (traderId) loadTraderView(traderId);
+    else loadData();
 </script>
 </body>
 </html>

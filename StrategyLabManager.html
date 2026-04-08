@@ -293,7 +293,7 @@
     </div>
     
     <script>
-        const ws = new WebSocket('ws://localhost:3001');
+        const ws = new WebSocket(`ws://${location.host}`);
         
         ws.onopen = () => {
             console.log('✓ Connected to Lab Server');

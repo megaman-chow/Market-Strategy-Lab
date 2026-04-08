@@ -1,0 +1,53 @@
+# ══════════════════════════════════════════════════════════════
+#  Market Physics Trader — Environment Configuration Template
+#  Copy this file to .env and fill in your credentials.
+#  Start everything with:  npm start
+# ══════════════════════════════════════════════════════════════
+
+# ── Server ports ──────────────────────────────────────────────
+PORT=3000       # Trader Engine + Hyperliquid UI
+LAB_PORT=3008   # Strategy Lab + Lab Manager
+
+# ── Binance (market data — works without keys in testnet mode) ─
+BINANCE_API_KEY=
+BINANCE_API_SECRET=
+USE_TESTNET=true
+
+# ── Telegram (optional — leave blank to disable) ──────────────
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_CHANNEL_ID=
+# Quant users: after requesting a code in Quant Portal, send: /link <code> to the bot (DM).
+
+# ── Multi-user Quant Portal (/quant_portal.html) ──────────────
+# Session tokens for the web API (min 16 characters).
+JWT_SECRET=change-me-to-a-long-random-string
+# JWT_EXPIRES_IN=30d
+#
+# Encrypts per-user Hyperliquid private keys in SQLite. Must be exactly 64 hex chars (32 bytes).
+# Generate: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+VAULT_MASTER_KEY=
+#
+# If either is missing, register/login or saving HL keys will error until configured.
+# Security: possession of trading.db + VAULT_MASTER_KEY = full access to stored keys. Protect backups and env.
+
+# ── Hyperliquid ───────────────────────────────────────────────
+# Your wallet address (public)
+HYPERLIQUID_ACCOUNT=0x...
+
+# Private key for MAINNET real-money trading
+HYPERLIQUID_SECRET_KEY=0x...
+
+# Private key for TESTNET (paper money — safe to test with)
+HYPERLIQUID_TEST_SECRET_KEY=0x...
+
+# Set to "false" to default to mainnet (default = testnet)
+# HYPERLIQUID_TESTNET=false
+
+# ── Fast live feed (Binance closed candles) ───────────────────
+# LIVE_KLINE_WS=false          # set to disable WebSocket; uses REST only
+# LIVE_REST_FALLBACK_MS=120000 # REST safety poll when WS on (ms)
+
+# ── Hyperliquid risk (shared across all traders in this process) ─
+# HL_KILL_SWITCH=true          # blocks NEW entries / adds; reduce-only closes still work
+# HL_MAX_ORDER_USD=250         # cap per-order notional (0 = no cap)
+

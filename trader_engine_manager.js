@@ -1,5 +1,6 @@
 require('dotenv').config();
 const express = require('express');
+const cors = require('cors');
 const http = require('http');
 const WebSocket = require('ws');
 const Binance = require('node-binance-api');
@@ -7,6 +8,10 @@ const { Telegraf } = require('telegraf');
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
+const { hlClient } = require('./hyperliquid_client');
+const { createKlineHub } = require('./binance_kline_hub');
+const { killSwitchActive, maxOrderUsd } = require('./hl_risk');
+const quantUser = require('./quant_user_service');
 
 // ═══════════════════════════════════════════════════════════
 //  CONFIGURATION
@@ -33,8 +38,13 @@ db.serialize(() => {
     invertLogic INTEGER,
     tpDistance INTEGER,
     createdAt INTEGER,
-    isActive INTEGER DEFAULT 1
+    isActive INTEGER DEFAULT 1,
+    hlLiveMode INTEGER DEFAULT 0,
+    hlSizeUsd REAL DEFAULT 100
   )`);
+  // Safe migrations for existing databases
+  db.run(`ALTER TABLE traders ADD COLUMN hlLiveMode INTEGER DEFAULT 0`, () => {});
+  db.run(`ALTER TABLE traders ADD COLUMN hlSizeUsd REAL DEFAULT 100`, () => {});
 
   db.run(`CREATE TABLE IF NOT EXISTS trades (
     id TEXT PRIMARY KEY,
@@ -136,17 +146,31 @@ Commands:
     ctx.reply(`✓ Subscribed to trader ${traderId}\nYou'll receive all signal updates.`);
   });
 
-  bot.launch();
-  console.log('✓ Telegram bot launched');
-  
+  bot.command('link', async (ctx) => {
+    const parts = ctx.message.text.split(' ');
+    const code = (parts[1] || '').trim();
+    if (!code) return ctx.reply('Usage: /link <6-digit code>\n\nGet your code from the Quant Portal → Telegram section.');
+    try {
+      const result = await quantUser.consumeTelegramLinkCode(db, code);
+      if (!result.ok) return ctx.reply(`❌ ${result.error}`);
+      await quantUser.bindTelegramChat(db, result.userId, ctx.chat.id);
+      await quantUser.deleteTelegramLinkCode(db, result.code);
+      ctx.reply('✅ Telegram linked to your Quant Portal account!\nYou will now receive trade signals from your bots.');
+    } catch (e) {
+      ctx.reply('❌ Error: ' + e.message);
+    }
+  });
+
   process.once('SIGINT', () => bot.stop('SIGINT'));
   process.once('SIGTERM', () => bot.stop('SIGTERM'));
 }
 
 async function sendTelegramSignal(traderId, signal, price) {
-  if (!bot || !TELEGRAM_CHANNEL_ID) return;
-  
-  const trader = await getTrader(traderId);
+  if (!bot) return;
+
+  const trader = await getTraderOrQuantTrader(traderId);
+  if (!trader) return;
+
   const emoji = signal.direction === 'bullish' ? '📈' : '📉';
   const dir = signal.direction === 'bullish' ? 'LONG' : 'SHORT';
   
@@ -180,9 +204,10 @@ async function sendTelegramSignal(traderId, signal, price) {
 }
 
 async function sendTelegramTrade(traderId, trade) {
-  if (!bot || !TELEGRAM_CHANNEL_ID) return;
-  
-  const trader = await getTrader(traderId);
+  if (!bot) return;
+
+  const trader = await getTraderOrQuantTrader(traderId);
+  if (!trader) return;
   const emoji = trade.hit === 'TP' ? '✅' : '❌';
   const pnlEmoji = trade.pnl >= 0 ? '💰' : '💸';
   
@@ -199,8 +224,19 @@ ${pnlEmoji} P&L: ${trade.pnl >= 0 ? '+' : ''}$${trade.pnl.toFixed(2)}
 ${trade.isLive ? '🔴 LIVE TRADE' : ''}`;
 
   try {
-    await bot.telegram.sendMessage(TELEGRAM_CHANNEL_ID, msg, { parse_mode: 'Markdown' });
-    
+    if (trader.quantUserId) {
+      const tg = await quantUser.getTelegramForUser(db, trader.quantUserId);
+      if (tg && tg.notify_signals && tg.chat_id) {
+        try {
+          await bot.telegram.sendMessage(tg.chat_id, msg, { parse_mode: 'Markdown' });
+        } catch (e) {
+          console.warn('Quant user Telegram:', e.message);
+        }
+      }
+    }
+    if (TELEGRAM_CHANNEL_ID) {
+      await bot.telegram.sendMessage(TELEGRAM_CHANNEL_ID, msg, { parse_mode: 'Markdown' });
+    }
     const subs = await getSubscribers(traderId);
     for (const sub of subs) {
       try {
@@ -221,6 +257,64 @@ const binance = new Binance().options({
   family: 4,
   useServerTime: true
 });
+
+const USE_KLINE_WS = process.env.LIVE_KLINE_WS !== 'false';
+const LIVE_REST_FALLBACK_MS = parseInt(process.env.LIVE_REST_FALLBACK_MS || '120000', 10);
+const klineHub = USE_KLINE_WS ? createKlineHub(binance) : null;
+if (klineHub) {
+  console.log('✓ Live feed: Binance futures kline WebSocket (per timeframe) + REST fallback');
+}
+
+// ── Shared real-time BTC price feed ────────────────────────────────────────
+// Uses the 1m candlestick stream which fires on every trade tick (~250ms),
+// giving the current candle's close price (= last traded price) in real-time.
+// All TraderEngine position watchers share this single WebSocket connection.
+class BtcPriceFeed {
+  constructor(bn) {
+    this._binance   = bn;
+    this._listeners = new Set();
+    this._endpoint  = null;
+    this._lastPrice = null;
+  }
+
+  subscribe(fn) {
+    this._listeners.add(fn);
+    if (this._listeners.size === 1) this._start();
+    return fn;
+  }
+
+  unsubscribe(fn) {
+    this._listeners.delete(fn);
+    if (this._listeners.size === 0) this._stop();
+  }
+
+  _start() {
+    this._endpoint = this._binance.futuresCandlesticks('BTCUSDT', '1m', (msg) => {
+      if (!msg || !msg.k) return;
+      const price = parseFloat(msg.k.c);
+      if (!price) return;
+      this._lastPrice = price;
+      for (const fn of this._listeners) {
+        try { fn(price); } catch (e) {
+          console.error('[BtcPriceFeed] listener error:', e.message);
+        }
+      }
+    });
+    console.log('📡 BTC real-time price feed started (1m tick stream)');
+  }
+
+  _stop() {
+    if (this._endpoint) {
+      try { this._binance.futuresTerminate(this._endpoint); } catch {}
+      this._endpoint = null;
+      console.log('📡 BTC real-time price feed stopped');
+    }
+  }
+
+  getLastPrice() { return this._lastPrice; }
+}
+
+const priceFeed = new BtcPriceFeed(binance);
 
 const traderEngines = new Map();
 
@@ -244,6 +338,149 @@ class TraderEngine {
     this.signals = { v1: [], v2: [] };
     this.isRunning = false;
     this.pollInterval = null;
+    // Hyperliquid live trading
+    this.hlLiveMode  = config.hlLiveMode  || false;
+    this.hlSizeUsd   = config.hlSizeUsd   || 100;
+    this.hlOpenOrder = null; // { isBuy, filledQty }
+    this.quantUserId = config.quantUserId || null;
+    this._hlWatcher  = null; // bot-managed price watcher (replaces exchange bracket orders)
+  }
+
+  async _getHl() {
+    if (this.quantUserId) return quantUser.getHlClientForUser(db, this.quantUserId);
+    return hlClient;
+  }
+
+  // ── Bot-managed price watcher ───────────────────────────────────────────
+  // Instead of relying on exchange-side TP/SL brackets (which proved unreliable),
+  // the bot monitors live price itself and force-closes via market order.
+  // This exactly mirrors the simulation logic and works on any exchange.
+
+  _startHlWatcher(isBuy, tp, sl) {
+    this._stopHlWatcher(); // clear any stale watcher
+
+    let currentSl = sl;
+    let closing   = false;
+
+    const onPrice = async (price) => {
+      // JS is single-threaded: closing=true is set synchronously before the first await,
+      // so concurrent ticks from the event loop will bail out immediately.
+      if (closing || !this.hlOpenOrder) return;
+
+      const hit = isBuy
+        ? (price >= tp ? 'TP' : price <= currentSl ? 'SL' : null)
+        : (price <= tp ? 'TP' : price >= currentSl ? 'SL' : null);
+
+      if (!hit) return;
+      closing = true;
+
+      console.log(`🎯 Bot-managed ${hit} triggered @ $${price.toFixed(2)}  [${this.config.name}]`);
+
+      try {
+        const hl = await this._getHl();
+        // Cancel any open bracket orders (safety — should be none in bot-managed mode)
+        try {
+          const idx = await hl.getBtcAssetIndex();
+          await hl.cancelAllOrders(idx);
+        } catch {}
+
+        // Close using the actual on-book BTC quantity (not sizeUsd which drifts with price)
+        const actualQty = await hl.getAbsPositionSize('BTC');
+        if (actualQty > 1e-8) {
+          const { avgPx } = await hl.closeByQty({ isBuy, qty: actualQty });
+          console.log(`🔴 HL ${hit} close  qty:${actualQty.toFixed(5)}  px:${avgPx}  [${this.config.name}]`);
+        } else {
+          console.log(`✓ HL already flat at ${hit} [${this.config.name}]`);
+        }
+        broadcast({ type: 'hl_order_closed', traderId: this.id, reason: hit, triggerPrice: price });
+      } catch (err) {
+        console.error(`❌ HL watcher close failed [${this.config.name}]:`, err.message);
+      } finally {
+        this.hlOpenOrder = null;
+        this._stopHlWatcher();
+      }
+    };
+
+    priceFeed.subscribe(onPrice);
+    this._hlWatcher = {
+      onPrice,
+      setSl: (newSl) => { currentSl = newSl; },
+    };
+
+    console.log(`👁  HL watcher: ${isBuy ? 'LONG' : 'SHORT'}  TP=$${tp.toFixed(1)}  SL=$${sl.toFixed(1)}  [${this.config.name}]`);
+  }
+
+  _stopHlWatcher() {
+    if (this._hlWatcher) {
+      priceFeed.unsubscribe(this._hlWatcher.onPrice);
+      this._hlWatcher = null;
+    }
+  }
+
+  // ── Hyperliquid live-trading helpers ────────────────────────────────────
+
+  async _hlEnter(isBuy, tp, sl) {
+    if (!this.hlLiveMode) return;
+    try {
+      const hl = await this._getHl();
+      const { filledQty: fillFromResp, avgPx } = await hl.marketOrder({ isBuy, sizeUsd: this.hlSizeUsd });
+      await new Promise(r => setTimeout(r, 400));
+      let filledQty = fillFromResp;
+      const fromBook = await hl.getAbsPositionSize('BTC');
+      if (fromBook > 1e-8) filledQty = fromBook;
+      if (filledQty < 1e-8) {
+        console.error(`❌ HL entry had no position size on book [${this.config.name}] — skipping watcher`);
+        this.hlOpenOrder = { isBuy, filledQty: 0 };
+        broadcast({ type: 'hl_order_placed', traderId: this.id, order: this.hlOpenOrder, tp, sl });
+        return;
+      }
+
+      this.hlOpenOrder = { isBuy, filledQty };
+      console.log(`🟢 HL ${isBuy ? 'LONG' : 'SHORT'} entered  qty:${filledQty}  px:${avgPx}  [${this.config.name}]`);
+
+      // Start bot-managed price watcher — no exchange brackets needed
+      if (tp && sl) this._startHlWatcher(isBuy, tp, sl);
+
+      broadcast({ type: 'hl_order_placed', traderId: this.id, order: this.hlOpenOrder, tp, sl });
+    } catch (err) {
+      console.error(`❌ HL entry failed [${this.config.name}]:`, err.message);
+    }
+  }
+
+  async _hlExit() {
+    if (!this.hlLiveMode || !this.hlOpenOrder) return;
+    // Stop the watcher first so it can't race with this manual close
+    this._stopHlWatcher();
+    try {
+      const hl = await this._getHl();
+      try {
+        const idx = await hl.getBtcAssetIndex();
+        await hl.cancelAllOrders(idx);
+      } catch {}
+
+      const actualQty = await hl.getAbsPositionSize('BTC');
+      if (actualQty > 1e-8) {
+        const { avgPx } = await hl.closeByQty({ isBuy: this.hlOpenOrder.isBuy, qty: actualQty });
+        console.log(`🔴 HL position closed [${this.config.name}]  qty:${actualQty.toFixed(5)}  px:${avgPx}`);
+      } else {
+        console.log(`✓ HL already flat (watcher closed it) [${this.config.name}]`);
+      }
+      broadcast({ type: 'hl_order_closed', traderId: this.id });
+    } catch (err) {
+      console.error(`❌ HL exit failed [${this.config.name}]:`, err.message);
+    } finally {
+      this.hlOpenOrder = null;
+    }
+  }
+
+  async _hlUpdateSL(newSl) {
+    if (!this.hlLiveMode || !this.hlOpenOrder) return;
+    // In bot-managed mode: update the watcher's in-memory SL — instant, no API call.
+    if (this._hlWatcher) {
+      this._hlWatcher.setSl(newSl);
+      console.log(`📐 HL trailing SL → $${newSl.toFixed(1)}  [${this.config.name}]`);
+      broadcast({ type: 'hl_sl_updated', traderId: this.id, newSl });
+    }
   }
 
   async start() {
@@ -251,6 +488,11 @@ class TraderEngine {
     this.isRunning = true;
     
     await this.loadHistoricalData();
+
+    if (klineHub) {
+      this._wsCandleListener = (candle) => this.tryIngestClosedCandle(candle);
+      klineHub.subscribe(this.config.timeframe, this._wsCandleListener);
+    }
     
     const pollMs = this.getPollInterval();
     this.pollInterval = setInterval(() => this.poll(), pollMs);
@@ -263,22 +505,25 @@ class TraderEngine {
   async stop() {
     console.log(`⏸ Stopping trader: ${this.config.name}`);
     this.isRunning = false;
+    this._stopHlWatcher(); // stop price watcher; live position (if any) must be closed manually
     if (this.pollInterval) {
       clearInterval(this.pollInterval);
       this.pollInterval = null;
+    }
+    if (klineHub && this._wsCandleListener) {
+      klineHub.unsubscribe(this.config.timeframe, this._wsCandleListener);
+      this._wsCandleListener = null;
     }
     await this.saveState();
   }
 
   getPollInterval() {
-    const map = {
-      '5m': 10000,
-      '15m': 20000,
-      '1h': 30000,
-      '4h': 60000,
-      '1d': 120000
-    };
-    return map[this.config.timeframe] || 30000;
+    if (klineHub) return LIVE_REST_FALLBACK_MS;
+    const fast = this.hlLiveMode;
+    const map = fast
+      ? { '5m': 3000, '15m': 5000, '1h': 8000, '4h': 15000, '1d': 45000 }
+      : { '5m': 10000, '15m': 20000, '1h': 30000, '4h': 60000, '1d': 120000 };
+    return map[this.config.timeframe] || (fast ? 8000 : 30000);
   }
 
   async loadHistoricalData() {
@@ -305,19 +550,42 @@ class TraderEngine {
     }
   }
 
+  /**
+   * Ingest one fully closed candle (from WebSocket or REST). Deduplicates by openTime.
+   */
+  async tryIngestClosedCandle(candle) {
+    if (!this.isRunning) return;
+    if (this.candles.some((c) => c.openTime === candle.openTime)) return;
+
+    this.candles.push(candle);
+    this.buildIndicators();
+    this.detectSignals();
+
+    await this.processCandle(this.candles.length - 1);
+    await this.saveState();
+    await this.saveCandle(candle);
+
+    broadcast({
+      type: 'new_candle',
+      traderId: this.id,
+      candle,
+      state: this.getPublicState(),
+    });
+
+    console.log(`🕯 New candle: ${this.config.name} @ $${candle.close.toFixed(2)}`);
+  }
+
   async poll() {
     if (!this.isRunning) return;
-    
+
     try {
       const fresh = await binance.futuresCandles('BTCUSDT', this.config.timeframe, { limit: 3 });
-      
+
       for (const k of fresh) {
         const openTime = k[0];
         const isClosed = k[6] < Date.now() - 1000;
-        
         if (!isClosed) continue;
-        if (this.candles.some(c => c.openTime === openTime)) continue;
-        
+
         const candle = {
           t: new Date(openTime),
           openTime,
@@ -327,130 +595,111 @@ class TraderEngine {
           low: parseFloat(k[3]),
           close: parseFloat(k[4]),
           volume: parseFloat(k[5]),
-          isLive: true
+          isLive: true,
         };
-        
-        this.candles.push(candle);
-        this.buildIndicators();
-        this.detectSignals();
-        
-        await this.processCandle(this.candles.length - 1);
-        await this.saveState();
-        await this.saveCandle(candle);
-        
-        broadcast({
-          type: 'new_candle',
-          traderId: this.id,
-          candle,
-          state: this.getPublicState()
-        });
-        
-        console.log(`🕯 New candle: ${this.config.name} @ $${candle.close.toFixed(2)}`);
+        await this.tryIngestClosedCandle(candle);
       }
     } catch (error) {
       console.error('Poll error:', error);
     }
   }
 
-  async processCandle(idx) {
+  async processCandle(idx, opts = {}) {
+    const { isLive = true, notify = true, persist = true } = opts;
     const c = this.candles[idx];
     const stratKey = this.config.strategy;
     const signals = this.signals[stratKey];
-    
+
+    // ── Open pending position ──────────────────────────────────────────────
     if (!this.account.open && this.account.pending) {
-      const sig = this.account.pending;
+      const sig   = this.account.pending;
       const entry = c.open;
-      const size = (this.account.bal * 0.30) / entry;
-      
+      const size  = (this.account.bal * 0.30) / entry;
+
       this.account.open = {
-        dir: sig.direction,
-        entry,
-        size,
-        tp: sig.tp,
-        sl: sig.sl,
-        entryIdx: idx,
-        entryTime: c.t,
-        isLive: true
+        dir: sig.direction, entry, size,
+        tp: sig.tp, sl: sig.sl,
+        entryIdx: idx, entryTime: c.t, isLive
       };
       this.account.pending = null;
-      
-      await sendTelegramSignal(this.id, sig, entry);
-      
-      broadcast({
-        type: 'position_opened',
-        traderId: this.id,
-        position: this.account.open
-      });
+
+      if (notify) {
+        await sendTelegramSignal(this.id, sig, entry);
+        broadcast({ type: 'position_opened', traderId: this.id, position: this.account.open });
+        await this._hlEnter(sig.direction === 'bullish', sig.tp, sig.sl);
+      }
     }
 
+    // ── Queue next signal ─────────────────────────────────────────────────
     const sigNow = signals.find(s => s.i === idx);
     if (sigNow && !this.account.open && !this.account.pending) {
       this.account.pending = sigNow;
     }
 
+    // ── Manage open position ──────────────────────────────────────────────
     if (this.account.open) {
       const { dir, entry, size, tp, sl } = this.account.open;
       let hitTP = false, hitSL = false;
       const R = Math.max(1e-9, Math.abs(entry - sl));
+      let slMoved = false;
 
       if (dir === 'bullish') {
+        const prevSl = this.account.open.sl;
         if (c.high >= entry + R) this.account.open.sl = Math.max(this.account.open.sl, entry);
         if (c.high >= entry + 2 * R) {
           const trail = c.close - (c.atr || 50) * 1.4;
           if (trail > this.account.open.sl) this.account.open.sl = trail;
         }
+        if (this.account.open.sl !== prevSl) slMoved = true;
         if (c.high >= tp) hitTP = true;
-        if (c.low <= this.account.open.sl) hitSL = true;
+        if (c.low  <= this.account.open.sl) hitSL = true;
         if (hitTP && hitSL) hitTP = false;
       } else {
-        if (c.low <= entry - R) this.account.open.sl = Math.min(this.account.open.sl, entry);
-        if (c.low <= entry - 2 * R) {
+        const prevSl = this.account.open.sl;
+        if (c.low  <= entry - R) this.account.open.sl = Math.min(this.account.open.sl, entry);
+        if (c.low  <= entry - 2 * R) {
           const trail = c.close + (c.atr || 50) * 1.4;
           if (trail < this.account.open.sl) this.account.open.sl = trail;
         }
-        if (c.low <= tp) hitTP = true;
+        if (this.account.open.sl !== prevSl) slMoved = true;
+        if (c.low  <= tp) hitTP = true;
         if (c.high >= this.account.open.sl) hitSL = true;
         if (hitTP && hitSL) hitTP = false;
       }
 
+      // Push trailing stop update to Hyperliquid
+      if (slMoved && !hitTP && !hitSL && isLive && notify) {
+        await this._hlUpdateSL(this.account.open.sl);
+      }
+
+      // ── Exit ──────────────────────────────────────────────────────────
       if (hitTP || hitSL) {
-        const ep = hitTP ? tp : this.account.open.sl;
+        const ep  = hitTP ? tp : this.account.open.sl;
         const pnl = dir === 'bullish' ? (ep - entry) * size : (entry - ep) * size;
-        
+
         this.account.bal += pnl;
         if (this.account.bal > this.account.peak) this.account.peak = this.account.bal;
         const dd = (this.account.peak - this.account.bal) / this.account.peak;
         if (dd > this.account.maxDD) this.account.maxDD = dd;
-        
         this.account.equity.push(this.account.bal);
-        
+
         const trade = {
-          id: uuidv4(),
-          traderId: this.id,
-          strategy: stratKey,
-          direction: dir,
-          entryTime: this.account.open.entryTime.getTime(),
-          entryPrice: entry,
-          exitPrice: ep,
-          exitTime: c.t.getTime(),
-          pnl,
-          result: pnl / Math.abs(entry * size),
-          hit: hitTP ? 'TP' : 'SL',
-          isLive: true
+          id: uuidv4(), traderId: this.id, strategy: stratKey, direction: dir,
+          entryTime: this.account.open.entryTime.getTime(), entryPrice: entry,
+          exitPrice: ep, exitTime: c.t.getTime(),
+          pnl, result: pnl / Math.abs(entry * size),
+          hit: hitTP ? 'TP' : 'SL', isLive
         };
-        
+
         this.account.trades.push(trade);
         this.account.open = null;
-        
-        await this.saveTrade(trade);
-        await sendTelegramTrade(this.id, trade);
-        
-        broadcast({
-          type: 'position_closed',
-          traderId: this.id,
-          trade,
-          state: this.getPublicState()
-        });
+
+        if (persist) await this.saveTrade(trade);
+        if (notify) {
+          await sendTelegramTrade(this.id, trade);
+          await this._hlExit();
+          broadcast({ type: 'position_closed', traderId: this.id, trade, state: this.getPublicState() });
+        }
       }
     }
   }
@@ -615,7 +864,10 @@ class TraderEngine {
       openPosition: this.account.open,
       pendingSignal: this.account.pending,
       candles: this.candles.length,
-      isRunning: this.isRunning
+      isRunning: this.isRunning,
+      hlLiveMode: this.hlLiveMode,
+      hlSizeUsd: this.hlSizeUsd,
+      hlOpenOrder: this.hlOpenOrder,
     };
   }
 
@@ -743,12 +995,28 @@ async function subscribeToTrader(chatId, traderId) {
   });
 }
 
+async function getTraderOrQuantTrader(traderId) {
+  const engine = traderEngines.get(traderId);
+  if (engine) return engine.config;
+
+  const trader = await getTrader(traderId);
+  if (trader) return trader;
+
+  return new Promise((resolve, reject) => {
+    db.get('SELECT * FROM quant_user_traders WHERE id = ?', [traderId], (err, row) => {
+      if (err) reject(err);
+      else resolve(row || null);
+    });
+  });
+}
+
 // ═══════════════════════════════════════════════════════════
 //  EXPRESS APP
 // ═══════════════════════════════════════════════════════════
 const app = express();
 const server = http.createServer(app);
 
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 app.use(express.static(__dirname));
 
@@ -768,23 +1036,32 @@ app.get('/api/traders', async (req, res) => {
 
 app.post('/api/traders', async (req, res) => {
   try {
-    const { name, timeframe, strategy, invertLogic, tpDistance } = req.body;
+    const { name, timeframe, strategy, invertLogic, tpDistance, hlLiveMode, hlSizeUsd } = req.body;
+    if (hlLiveMode && killSwitchActive()) {
+      return res.status(403).json({ error: 'HL_KILL_SWITCH is on — cannot create trader with live HL' });
+    }
     const id = uuidv4();
-    
+    let szNew = parseFloat(hlSizeUsd) || 100;
+    const cap = maxOrderUsd();
+    if (cap > 0) szNew = Math.min(szNew, cap);
+
     await new Promise((resolve, reject) => {
       db.run(
-        `INSERT INTO traders (id, name, timeframe, strategy, invertLogic, tpDistance, createdAt)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [id, name, timeframe, strategy, invertLogic ? 1 : 0, tpDistance || 50, Date.now()],
+        `INSERT INTO traders (id, name, timeframe, strategy, invertLogic, tpDistance, createdAt, hlLiveMode, hlSizeUsd)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, name, timeframe, strategy, invertLogic ? 1 : 0, tpDistance || 50, Date.now(),
+         hlLiveMode ? 1 : 0, szNew],
         (err) => err ? reject(err) : resolve()
       );
     });
-    
-    const config = { id, name, timeframe, strategy, invertLogic, tpDistance: tpDistance || 50 };
+
+    const config = { id, name, timeframe, strategy, invertLogic,
+                     tpDistance: tpDistance || 50,
+                     hlLiveMode: !!hlLiveMode, hlSizeUsd: szNew };
     const engine = new TraderEngine(config);
     traderEngines.set(id, engine);
     await engine.start();
-    
+
     res.json({ success: true, trader: config });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -830,6 +1107,236 @@ app.get('/api/traders/:id/trades', async (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════════
+//  HYPERLIQUID API ROUTES
+// ═══════════════════════════════════════════════════════════
+
+app.get('/api/public-config', (req, res) => {
+  res.json({
+    liveKlineWs: !!klineHub,
+    liveRestFallbackMs: LIVE_REST_FALLBACK_MS,
+    hlKillSwitch: killSwitchActive(),
+    hlMaxOrderUsd: maxOrderUsd() || null,
+  });
+});
+
+app.get('/api/hyperliquid/status', (req, res) => {
+  try {
+    const configured = hlClient.isConfigured();
+    res.json({ configured, ...(configured ? hlClient.getConfig() : {}) });
+  } catch { res.json({ configured: false }); }
+});
+
+app.post('/api/hyperliquid/configure', async (req, res) => {
+  try {
+    const { secretKey, accountAddress, testnet } = req.body;
+    if (!secretKey || !accountAddress)
+      return res.status(400).json({ error: 'secretKey and accountAddress required' });
+    hlClient.configure({ secretKey, accountAddress, testnet: testnet !== false });
+    res.json({ success: true, configured: true, testnet: testnet !== false, accountAddress });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/hyperliquid/account', async (req, res) => {
+  try { res.json(await hlClient.getAccountSnapshot(req.query.address)); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/hyperliquid/orders', async (req, res) => {
+  try { res.json(await hlClient.getOpenOrders(req.query.address)); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/hyperliquid/order', async (req, res) => {
+  try {
+    const { isBuy, sizeUsd, leverage } = req.body;
+    if (typeof isBuy !== 'boolean' || !sizeUsd)
+      return res.status(400).json({ error: 'isBuy (boolean) and sizeUsd required' });
+    const r = await hlClient.marketOrder({ isBuy, sizeUsd, leverage: leverage || 1 });
+    res.json({ success: true, ...r });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/hyperliquid/close', async (req, res) => {
+  try {
+    const { isBuy, sizeUsd } = req.body;
+    const r = await hlClient.closePosition({ isBuy, sizeUsd });
+    res.json({ success: true, ...r });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ═══════════════════════════════════════════════════════════
+//  QUANT USER ROUTES  (/api/quant/*)
+// ═══════════════════════════════════════════════════════════
+
+function requireAuth(req, res, next) {
+  const auth = req.headers.authorization || '';
+  const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
+  if (!token) return res.status(401).json({ error: 'Unauthorized' });
+  try {
+    req.userId = quantUser.verifyUserToken(token);
+    next();
+  } catch {
+    res.status(401).json({ error: 'Invalid or expired token' });
+  }
+}
+
+app.post('/api/quant/auth/register', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const user = await quantUser.registerUser(db, email, password);
+    const token = quantUser.signUserToken(user.id);
+    res.json({ token, email: user.email });
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+app.post('/api/quant/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const user = await quantUser.loginUser(db, email, password);
+    const token = quantUser.signUserToken(user.id);
+    res.json({ token, email: user.email });
+  } catch (err) { res.status(401).json({ error: err.message }); }
+});
+
+app.get('/api/quant/me', requireAuth, async (req, res) => {
+  try {
+    const user = await quantUser.getUserById(db, req.userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    const hl = await quantUser.userHlConfigured(db, req.userId);
+    const tg = await quantUser.getTelegramForUser(db, req.userId);
+    res.json({ email: user.email, hyperliquid: hl, telegramLinked: !!tg });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/quant/hyperliquid', requireAuth, async (req, res) => {
+  try {
+    const { accountAddress, secretKey, testnet } = req.body;
+    await quantUser.saveUserHyperliquid(db, req.userId, { accountAddress, secretKey, testnet });
+    res.json({ success: true });
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+app.get('/api/quant/hyperliquid/status', requireAuth, async (req, res) => {
+  try {
+    res.json(await quantUser.userHlConfigured(db, req.userId));
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/quant/hyperliquid/account', requireAuth, async (req, res) => {
+  try {
+    const hl = await quantUser.getHlClientForUser(db, req.userId);
+    const row = await quantUser.getUserHlRow(db, req.userId);
+    res.json(await hl.getAccountSnapshot(row.account_address));
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/quant/telegram/link-code', requireAuth, async (req, res) => {
+  try {
+    res.json(await quantUser.createTelegramLinkCode(db, req.userId));
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/quant/traders', requireAuth, async (req, res) => {
+  try {
+    const rows = await new Promise((resolve, reject) => {
+      db.all(
+        'SELECT * FROM quant_user_traders WHERE user_id = ? AND isActive = 1',
+        [req.userId],
+        (err, r) => err ? reject(err) : resolve(r)
+      );
+    });
+    const withStates = rows.map(t => {
+      const engine = traderEngines.get(t.id);
+      return { ...t, state: engine ? engine.getPublicState() : null };
+    });
+    res.json(withStates);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/quant/traders', requireAuth, async (req, res) => {
+  try {
+    const { name, timeframe, strategy, invertLogic, tpDistance, hlLiveMode, hlSizeUsd } = req.body;
+    if (hlLiveMode && killSwitchActive()) {
+      return res.status(403).json({ error: 'HL_KILL_SWITCH is on — cannot create trader with live HL' });
+    }
+    const id = uuidv4();
+    let sz = parseFloat(hlSizeUsd) || 100;
+    const cap = maxOrderUsd();
+    if (cap > 0) sz = Math.min(sz, cap);
+
+    await new Promise((resolve, reject) => {
+      db.run(
+        `INSERT INTO quant_user_traders (id, user_id, name, timeframe, strategy, invertLogic, tpDistance, createdAt, hlLiveMode, hlSizeUsd)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, req.userId, name || 'Trader', timeframe, strategy,
+         invertLogic ? 1 : 0, tpDistance || 50, Date.now(), hlLiveMode ? 1 : 0, sz],
+        (err) => err ? reject(err) : resolve()
+      );
+    });
+
+    const config = {
+      id, name: name || 'Trader', timeframe, strategy,
+      invertLogic: !!invertLogic, tpDistance: tpDistance || 50,
+      hlLiveMode: !!hlLiveMode, hlSizeUsd: sz,
+      quantUserId: req.userId,
+    };
+    const engine = new TraderEngine(config);
+    traderEngines.set(id, engine);
+    await engine.start();
+    res.json({ success: true, trader: config });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/quant/traders/:id/stop', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const row = await new Promise((resolve, reject) => {
+      db.get('SELECT * FROM quant_user_traders WHERE id = ? AND user_id = ?', [id, req.userId],
+        (err, r) => err ? reject(err) : resolve(r));
+    });
+    if (!row) return res.status(404).json({ error: 'Trader not found' });
+
+    const engine = traderEngines.get(id);
+    if (engine) {
+      await engine.stop();
+      traderEngines.delete(id);
+    }
+    await new Promise((resolve, reject) => {
+      db.run('UPDATE quant_user_traders SET isActive = 0 WHERE id = ?', [id],
+        (err) => err ? reject(err) : resolve());
+    });
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/traders/:id/hl-live', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { enabled, sizeUsd } = req.body;
+    if (enabled && killSwitchActive()) {
+      return res.status(403).json({
+        error: 'HL_KILL_SWITCH is on — enable live trading only after setting HL_KILL_SWITCH=false in .env',
+      });
+    }
+    let sz = parseFloat(sizeUsd) || 100;
+    const cap = maxOrderUsd();
+    if (cap > 0) sz = Math.min(sz, cap);
+
+    await new Promise((resolve, reject) => {
+      db.run('UPDATE traders SET hlLiveMode = ?, hlSizeUsd = ? WHERE id = ?',
+        [enabled ? 1 : 0, sz, id],
+        (err) => err ? reject(err) : resolve());
+    });
+    const engine = traderEngines.get(id);
+    if (engine) {
+      engine.hlLiveMode = !!enabled;
+      engine.hlSizeUsd = sz;
+    }
+    res.json({ success: true, hlLiveMode: !!enabled, hlSizeUsd: sz });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ═══════════════════════════════════════════════════════════
 //  WEBSOCKET
 // ═══════════════════════════════════════════════════════════
 const wss = new WebSocket.Server({ server });
@@ -866,6 +1373,13 @@ function broadcast(data) {
 //  STARTUP
 // ═══════════════════════════════════════════════════════════
 async function startup() {
+  try {
+    await quantUser.initQuantTables(db);
+    console.log('✓ Quant user tables ready');
+  } catch (e) {
+    console.error('Quant tables init failed:', e.message);
+  }
+
   const traders = await getAllActiveTraders();
   console.log(`📊 Restoring ${traders.length} active traders...`);
   
@@ -877,7 +1391,9 @@ async function startup() {
         timeframe: trader.timeframe,
         strategy: trader.strategy,
         invertLogic: trader.invertLogic === 1,
-        tpDistance: trader.tpDistance
+        tpDistance: trader.tpDistance,
+        hlLiveMode: trader.hlLiveMode === 1,
+        hlSizeUsd: trader.hlSizeUsd || 100,
       };
       
       const engine = new TraderEngine(config);
@@ -902,8 +1418,49 @@ async function startup() {
       console.error(`Failed to restore trader ${trader.name}:`, error);
     }
   }
+
+  const qTraders = await quantUser.getAllActiveQuantTraders(db);
+  console.log(`📊 Restoring ${qTraders.length} quant user traders...`);
+  for (const trader of qTraders) {
+    try {
+      const config = {
+        id: trader.id,
+        name: trader.name,
+        timeframe: trader.timeframe,
+        strategy: trader.strategy,
+        invertLogic: trader.invertLogic === 1,
+        tpDistance: trader.tpDistance,
+        hlLiveMode: trader.hlLiveMode === 1,
+        hlSizeUsd: trader.hlSizeUsd || 100,
+        quantUserId: trader.user_id,
+      };
+      const engine = new TraderEngine(config);
+      const state = await getTraderState(trader.id);
+      if (state) {
+        engine.account.bal = state.balance;
+        engine.account.equity = JSON.parse(state.equity || '[10000]');
+        engine.account.peak = state.peak;
+        engine.account.maxDD = state.maxDrawdown;
+        if (state.openPosition && state.openPosition !== 'null') {
+          engine.account.open = JSON.parse(state.openPosition);
+        }
+        if (state.pendingSignal && state.pendingSignal !== 'null') {
+          engine.account.pending = JSON.parse(state.pendingSignal);
+        }
+      }
+      traderEngines.set(trader.id, engine);
+      await engine.start();
+    } catch (error) {
+      console.error(`Failed to restore quant trader ${trader.name}:`, error);
+    }
+  }
   
   server.listen(PORT, () => {
+    if (bot) {
+      bot.launch().then(() => console.log('✓ Telegram bot launched')).catch((err) => {
+        console.error('⚠️  Telegram bot launch failed (another instance running?):', err.message);
+      });
+    }
     console.log(`\n🚀 Market Physics Trader v2.0`);
     console.log(`📡 Server: http://localhost:${PORT}`);
     console.log(`🤖 Telegram: ${bot ? 'ACTIVE' : 'DISABLED'}`);
