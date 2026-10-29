@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rolex · Precision Algo Trading</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&family=JetBrains+Mono:wght@400;700&display=swap');
+:root{
+  --bg:#050709;
+  --surface:#090d12;
+  --card:#0b1018;
+  --border:rgba(255,255,255,.06);
+  --border2:rgba(255,255,255,.1);
+  --text:#c0cedc;
+  --muted:#4a607a;
+  --white:#fff;
+  --green:#00e676;
+  --green2:rgba(0,230,118,.12);
+  --teal:#64ffda;
+  --teal2:rgba(100,255,218,.1);
+  --indigo:#6c63ff;
+  --indigo2:rgba(108,99,255,.14);
+  --indigo3:rgba(108,99,255,.08);
+  --red:#ff1744;
+  --red2:rgba(255,23,68,.12);
+  --amber:#ffd740;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  font-family:'Inter',sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  min-height:100vh;
+  font-size:14px;
+  line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+  position:relative;
+  overflow-x:hidden;
+}
+body::before{
+  content:'';position:fixed;top:0;left:0;width:100%;height:100%;
+  background:url('images/rolexBgfrontview.png') center center/cover no-repeat;
+  opacity:.5;pointer-events:none;z-index:-1;
+  animation:slowZoom 30s ease-in-out infinite alternate;
+}
+@keyframes slowZoom{
+  0%{transform:scale(1);}
+  100%{transform:scale(1.1);}
+}
+body::after{
+  content:'';position:fixed;top:0;left:0;width:100%;height:100%;
+  background:linear-gradient(135deg,rgba(5,7,9,.7) 0%,rgba(9,13,18,.6) 50%,rgba(11,16,24,.7) 100%);
+  pointer-events:none;z-index:-1;
+}
+/* ── NAV ── */
+nav{
+  position:sticky;top:0;z-index:100;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 32px;height:62px;
+  background:rgba(5,7,9,.85);
+  backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--border);
+}
+.navLogo{display:flex;align-items:center;gap:10px;text-decoration:none}
+.navLogo .icon{
+  width:32px;height:32px;border-radius:10px;
+  background:linear-gradient(135deg,var(--indigo),var(--teal));
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;box-shadow:0 0 20px rgba(108,99,255,.35);
+  overflow:hidden;
+}
+.navLogo .icon img{width:100%;height:100%;object-fit:contain}
+.navLogo span{
+  font-size:16px;font-weight:700;letter-spacing:.08em;
+  color:var(--white);text-transform:uppercase;
+}
+.navRight{display:flex;align-items:center;gap:10px}
+.navLink{
+  color:var(--muted);font-size:13px;font-weight:500;
+  text-decoration:none;padding:7px 12px;border-radius:8px;
+  transition:color .2s,background .2s;
+}
+.navLink:hover{color:var(--text);background:rgba(255,255,255,.05)}
+.navBtn{
+  font-size:13px;font-weight:600;
+  background:var(--indigo2);
+  border:1px solid rgba(108,99,255,.45);
+  color:var(--white);
+  padding:8px 18px;border-radius:10px;
+  cursor:pointer;font-family:inherit;
+  transition:background .2s,box-shadow .2s;
+}
+.navBtn:hover{background:rgba(108,99,255,.28);box-shadow:0 0 16px rgba(108,99,255,.3)}
+.liveChip{
+  display:flex;align-items:center;gap:7px;
+  font-size:11px;color:var(--green);font-family:'JetBrains Mono',monospace;
+  border:1px solid rgba(0,230,118,.25);background:rgba(0,230,118,.06);
+  padding:6px 12px;border-radius:999px;
+}
+.liveDot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 1.8s infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.7)}}
+
+/* ── HERO ── */
+.hero{
+  text-align:center;
+  padding:100px 24px 80px;
+  position:relative;overflow:hidden;
+}
+.hero::before{
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background:
+    radial-gradient(ellipse 800px 500px at 50% -60px, rgba(108,99,255,.22), transparent),
+    radial-gradient(ellipse 600px 400px at 20% 50%, rgba(100,255,218,.08), transparent),
+    radial-gradient(ellipse 600px 400px at 80% 50%, rgba(0,230,118,.06), transparent);
+}
+.heroKicker{
+  display:inline-flex;align-items:center;gap:8px;
+  font-size:11px;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--indigo);font-weight:600;
+  background:var(--indigo3);border:1px solid rgba(108,99,255,.3);
+  padding:6px 14px;border-radius:999px;margin-bottom:28px;
+}
+.hero h1{
+  font-size:clamp(40px,7vw,76px);
+  font-weight:900;color:var(--white);
+  letter-spacing:-.03em;line-height:1.08;
+  margin-bottom:24px;
+}
+.hero h1 .accent{
+  background:linear-gradient(90deg,var(--indigo),var(--teal));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;
+}
+.hero p{
+  font-size:17px;color:var(--muted);
+  max-width:54ch;margin:0 auto 40px;line-height:1.75;
+}
+.heroActions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.btnPrimary{
+  font-size:14px;font-weight:700;
+  background:linear-gradient(180deg,rgba(108,99,255,.7),rgba(108,99,255,.4));
+  border:1px solid rgba(108,99,255,.6);
+  box-shadow:0 0 24px rgba(108,99,255,.3),inset 0 1px 0 rgba(255,255,255,.08);
+  color:var(--white);padding:14px 28px;border-radius:14px;
+  cursor:pointer;font-family:inherit;
+  transition:transform .15s,box-shadow .2s;
+}
+.btnPrimary:hover{transform:translateY(-2px);box-shadow:0 4px 32px rgba(108,99,255,.5),inset 0 1px 0 rgba(255,255,255,.12)}
+.btnSecondary{
+  font-size:14px;font-weight:600;
+  background:rgba(255,255,255,.05);
+  border:1px solid var(--border2);
+  color:var(--text);padding:14px 28px;border-radius:14px;
+  cursor:pointer;font-family:inherit;
+  transition:background .2s,border-color .2s;
+  text-decoration:none;display:inline-block;
+}
+.btnSecondary:hover{background:rgba(255,255,255,.08);border-color:var(--indigo)}
+
+/* ── STATS BAR ── */
+.statsBar{
+  display:flex;align-items:stretch;justify-content:center;flex-wrap:wrap;
+  border:1px solid var(--border);
+  border-radius:18px;
+  background:var(--surface);
+  max-width:900px;margin:0 auto 80px;
+  overflow:hidden;
+}
+.statItem{
+  flex:1;min-width:160px;
+  padding:22px 20px;
+  border-right:1px solid var(--border);
+  text-align:center;
+}
+.statItem:last-child{border-right:none}
+.statNum{font-size:28px;font-weight:900;color:var(--white);font-family:'JetBrains Mono',monospace;line-height:1.1;margin-bottom:6px}
+.statNum .u{font-size:16px;color:var(--indigo)}
+.statLabel{font-size:11px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase}
+
+/* ── FEATURES ── */
+.section{padding:60px 24px;max-width:1060px;margin:0 auto}
+.sectionLabel{
+  font-size:11px;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--indigo);font-weight:600;margin-bottom:14px;
+}
+.sectionTitle{
+  font-size:clamp(26px,4vw,38px);font-weight:800;color:var(--white);
+  letter-spacing:-.02em;line-height:1.2;margin-bottom:16px;
+}
+.sectionSub{font-size:15px;color:var(--muted);max-width:52ch;line-height:1.75;margin-bottom:40px}
+.featGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+@media(max-width:860px){.featGrid{grid-template-columns:1fr}}
+.featCard{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:18px;
+  padding:24px;
+  transition:border-color .2s,transform .2s;
+}
+.featCard:hover{border-color:rgba(108,99,255,.4);transform:translateY(-3px)}
+.featIcon{
+  width:42px;height:42px;border-radius:12px;
+  background:var(--indigo3);border:1px solid rgba(108,99,255,.25);
+  display:flex;align-items:center;justify-content:center;
+  font-size:20px;margin-bottom:14px;
+}
+.featTitle{font-size:15px;font-weight:700;color:var(--white);margin-bottom:8px}
+.featDesc{font-size:13px;color:var(--muted);line-height:1.7}
+
+/* ── HOW IT WORKS ── */
+.howGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;background:var(--border);border-radius:18px;overflow:hidden}
+@media(max-width:700px){.howGrid{grid-template-columns:1fr}}
+.howStep{
+  background:var(--card);
+  padding:28px 24px;
+  position:relative;
+}
+.howNum{
+  font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--indigo);margin-bottom:14px;
+  display:flex;align-items:center;gap:8px;
+}
+.howNum::before{
+  content:'';display:inline-block;width:22px;height:22px;border-radius:50%;
+  background:var(--indigo2);border:1px solid rgba(108,99,255,.4);
+  font-size:11px;line-height:22px;text-align:center;font-weight:900;color:var(--indigo);
+}
+.howTitle{font-size:15px;font-weight:700;color:var(--white);margin-bottom:8px}
+.howDesc{font-size:13px;color:var(--muted);line-height:1.7}
+
+/* ── AUTH SECTION ── */
+.authWrap{
+  max-width:900px;margin:0 auto;
+  display:grid;grid-template-columns:1fr 1fr;gap:24px;
+  padding:0 24px 80px;
+}
+@media(max-width:700px){.authWrap{grid-template-columns:1fr}}
+.authCard{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:22px;
+  padding:28px;
+}
+.authCard.highlight{
+  border-color:rgba(108,99,255,.4);
+  background:linear-gradient(160deg,rgba(108,99,255,.1),var(--surface) 60%);
+  box-shadow:0 0 40px rgba(108,99,255,.1);
+}
+.authTitle{
+  font-size:16px;font-weight:700;color:var(--white);
+  margin-bottom:6px;
+}
+.authSub{font-size:13px;color:var(--muted);margin-bottom:22px;line-height:1.6}
+.tabs{display:flex;gap:6px;margin-bottom:18px}
+.tabBtn{
+  flex:1;padding:9px 10px;border-radius:10px;
+  border:1px solid var(--border2);
+  background:transparent;color:var(--muted);
+  font-size:12px;font-weight:600;font-family:inherit;
+  letter-spacing:.06em;text-transform:uppercase;cursor:pointer;
+  transition:all .18s;
+}
+.tabBtn.on{color:var(--white);border-color:rgba(108,99,255,.5);background:var(--indigo2)}
+.field{margin-bottom:14px}
+.field label{
+  display:block;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--muted);margin-bottom:7px;
+}
+.field input,.field select{
+  width:100%;
+  background:rgba(0,0,0,.4);
+  border:1px solid var(--border2);
+  color:var(--white);
+  padding:12px 14px;border-radius:12px;
+  font-family:'Inter',sans-serif;font-size:13px;outline:none;
+  transition:border-color .2s,box-shadow .2s;
+}
+.field input:focus,.field select:focus{
+  border-color:var(--indigo);
+  box-shadow:0 0 0 3px rgba(108,99,255,.15);
+}
+.field input::placeholder{color:var(--muted)}
+.field select option{background:#0b1018}
+.authSubmit{
+  width:100%;padding:13px;border-radius:12px;
+  background:linear-gradient(180deg,rgba(108,99,255,.65),rgba(108,99,255,.35));
+  border:1px solid rgba(108,99,255,.55);
+  color:var(--white);font-size:14px;font-weight:700;
+  font-family:inherit;cursor:pointer;letter-spacing:.04em;
+  transition:transform .15s,box-shadow .2s;
+}
+.authSubmit:hover{transform:translateY(-1px);box-shadow:0 4px 20px rgba(108,99,255,.4)}
+.formMsg{font-size:12px;margin-top:10px;line-height:1.6}
+.formMsg.ok{color:var(--green)}
+.formMsg.err{color:var(--red)}
+.hidden{display:none!important}
+
+/* ── PORTAL (logged-in state) ── */
+.portalWrap{max-width:980px;margin:0 auto;padding:0 24px 80px}
+.portalHeader{
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;
+  margin-bottom:24px;
+}
+.portalTitle{font-size:22px;font-weight:800;color:var(--white)}
+.portalMeta{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.6}
+.chip{
+  display:inline-flex;align-items:center;gap:7px;
+  font-size:11px;padding:7px 13px;border-radius:999px;
+  border:1px solid var(--border2);background:rgba(255,255,255,.04);
+  color:var(--text);
+}
+.chip .dot{width:7px;height:7px;border-radius:50%;background:var(--muted)}
+.chip.ok .dot{background:var(--green);animation:pulse 2s infinite}
+.chip.warn .dot{background:var(--amber)}
+.btnSmall{
+  font-size:12px;font-weight:600;font-family:inherit;
+  padding:9px 16px;border-radius:10px;
+  border:1px solid var(--border2);background:rgba(255,255,255,.04);
+  color:var(--text);cursor:pointer;
+  transition:background .2s,border-color .2s;
+  letter-spacing:.04em;
+}
+.btnSmall:hover{background:rgba(255,255,255,.08);border-color:var(--indigo)}
+.btnSmall.danger{border-color:rgba(255,23,68,.35);color:var(--red)}
+.btnSmall.danger:hover{background:var(--red2);border-color:rgba(255,23,68,.7)}
+.btnSmall.primary{border-color:rgba(108,99,255,.5);background:var(--indigo2);color:var(--white)}
+.btnSmall.primary:hover{background:rgba(108,99,255,.28)}
+
+.portalGrid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media(max-width:760px){.portalGrid{grid-template-columns:1fr}}
+.pCard{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:20px;padding:22px;
+}
+.pCard h4{
+  font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--muted);margin-bottom:16px;
+}
+.botCard{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:14px;padding:14px;
+  margin-bottom:10px;
+}
+.botCard:last-child{margin-bottom:0}
+.botName{font-size:14px;font-weight:700;color:var(--white)}
+.botMeta{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.6}
+.botRow{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.botActions{display:flex;flex-direction:column;gap:8px;align-items:flex-end;flex-shrink:0}
+.statusBadge{
+  display:inline-flex;align-items:center;gap:7px;
+  font-size:11px;padding:6px 12px;border-radius:999px;
+  border:1px solid var(--border2);background:rgba(255,255,255,.04);
+  color:var(--muted);
+}
+.statusBadge .sDot{width:7px;height:7px;border-radius:50%;background:var(--muted)}
+.statusBadge.running .sDot{background:var(--green);animation:pulse 2s infinite}
+.statusBadge.running{border-color:rgba(0,230,118,.3);color:var(--green)}
+.statusBadge.live .sDot{background:var(--teal);animation:pulse 2s infinite}
+.statusBadge.live{border-color:rgba(100,255,218,.3);color:var(--teal)}
+.emptyState{
+  text-align:center;padding:32px 16px;
+  color:var(--muted);font-size:13px;line-height:1.8;
+}
+.emptyIcon{font-size:32px;margin-bottom:12px;display:block;opacity:.5}
+.pDivider{height:1px;background:var(--border);margin:16px 0}
+.createForm .field{margin-bottom:12px}
+.createForm .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.createForm .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.codeBox{
+  background:rgba(0,0,0,.45);border:1px solid var(--border2);
+  border-radius:12px;padding:14px;margin-top:12px;
+  font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.8;color:var(--white);
+}
+.codeHighlight{font-size:22px;font-weight:700;color:var(--teal);letter-spacing:.1em}
+
+/* ── FOOTER ── */
+footer{
+  border-top:1px solid var(--border);
+  padding:28px 24px;
+  text-align:center;
+  font-size:12px;color:var(--muted);
+}
+footer a{color:var(--indigo);text-decoration:none}
+footer a:hover{text-decoration:underline}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a class="navLogo" href="/RolexHome.html">
+    <div class="icon"><img src="images/rolexLogo.png" alt="Rolex"></div>
+    <span>Rolex</span>
+  </a>
+  <div class="navRight">
+    <div class="liveChip" id="navLive">
+      <div class="liveDot"></div>
+      <span>Live</span>
+    </div>
+    <a class="navLink" href="/RolexStrategy.html">Dashboard</a>
+    <button class="navBtn" id="navAuthBtn" onclick="scrollToAuth()">Get Started</button>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="heroKicker">⌚ Rolex Automation · v3 Strategy</div>
+  <h1>Precision trades.<br><span class="accent">Automated.</span></h1>
+  <p>Rolex runs the BULL/BEAR ELITE DASHBOARD strategy on any coin and timeframe you choose — detecting momentum breakouts, managing positions, and firing your Hyperliquid account without lifting a finger.</p>
+  <div class="heroActions">
+    <button class="btnPrimary" onclick="scrollToAuth()">Start for free →</button>
+    <a class="btnSecondary" href="/RolexStrategy.html">View live dashboard</a>
+  </div>
+</section>
+
+<!-- STATS -->
+<div style="padding:0 24px 60px">
+  <div class="statsBar">
+    <div class="statItem">
+      <div class="statNum">v3<span class="u"> Strategy</span></div>
+      <div class="statLabel">BULL/BEAR ELITE DASHBOARD</div>
+    </div>
+    <div class="statItem">
+      <div class="statNum">6<span class="u"> Coins</span></div>
+      <div class="statLabel">Multi-asset support</div>
+    </div>
+    <div class="statItem">
+      <div class="statNum">5<span class="u"> TFs</span></div>
+      <div class="statLabel">5m → 1d selectable</div>
+    </div>
+    <div class="statItem">
+      <div class="statNum">0<span class="u">ms</span></div>
+      <div class="statLabel">Signal-to-order latency*</div>
+    </div>
+  </div>
+</div>
+
+<!-- FEATURES -->
+<section class="section">
+  <div class="sectionLabel">Why Rolex</div>
+  <div class="sectionTitle">Everything you need.<br>Nothing you don't.</div>
+  <p class="sectionSub">Built on top of a proven multi-user trading engine. Rolex strips it back to just what matters: the v3 strategy, your coin, your size.</p>
+  <div class="featGrid">
+    <div class="featCard">
+      <div class="featIcon">📈</div>
+      <div class="featTitle">Breakout momentum detection</div>
+      <div class="featDesc">Combines EMA trend, swing structure breaks, body size, ATR expansion and volume confirmation to fire only high-quality entries.</div>
+    </div>
+    <div class="featCard">
+      <div class="featIcon">🔁</div>
+      <div class="featTitle">EMA-exit state machine</div>
+      <div class="featDesc">Position closes the moment price crosses back through the exit EMA — the same logic as your Pine indicator. No guesswork, no emotion.</div>
+    </div>
+    <div class="featCard">
+      <div class="featIcon">⚡</div>
+      <div class="featTitle">Hyperliquid execution</div>
+      <div class="featDesc">Market orders with bot-managed TP/SL watcher. No exchange-side bracket failures. Bot monitors live price tick-by-tick and closes with the real on-book qty.</div>
+    </div>
+    <div class="featCard">
+      <div class="featIcon">🪙</div>
+      <div class="featTitle">Any coin, any timeframe</div>
+      <div class="featDesc">BTC, ETH, SOL, AVAX and more. Pick your preferred timeframe. Premium tier unlocks all five intervals.</div>
+    </div>
+    <div class="featCard">
+      <div class="featIcon">📲</div>
+      <div class="featTitle">Telegram alerts</div>
+      <div class="featDesc">Every entry, exit and trade result lands in your Telegram. Link in one step with a 6-digit code — no bots to configure.</div>
+    </div>
+    <div class="featCard">
+      <div class="featIcon">🛡</div>
+      <div class="featTitle">Trailing stop management</div>
+      <div class="featDesc">Once price moves 1R in your favour the stop locks to break-even. At 2R it trails with a dynamic ATR-based step to protect profits.</div>
+    </div>
+    <div class="featCard">
+      <div class="featIcon">⚙</div>
+      <div class="featTitle">TradingView-style inputs</div>
+      <div class="featDesc">Tweak EMA lengths, ATR filters, volume multipliers, swing structure and cooldown — preview on chart instantly. Premium saves profiles and applies to live bots.</div>
+    </div>
+  </div>
+</section>
+
+<section class="section" style="padding-top:0">
+  <div class="sectionLabel">Plans</div>
+  <div class="sectionTitle">Standard vs Premium</div>
+  <div class="featGrid" style="grid-template-columns:1fr 1fr;max-width:720px">
+    <div class="featCard">
+      <div class="featTitle">Standard</div>
+      <div class="featDesc" style="margin-top:10px;line-height:1.9">
+        · Timeframes: 5m, 1h<br>
+        · Chart preview with default indicator settings<br>
+        · Live bots with default v3 params<br>
+        · Telegram + HL automation
+      </div>
+    </div>
+    <div class="featCard" style="border-color:rgba(255,215,64,.25)">
+      <div class="featTitle" style="color:var(--amber)">★ Premium</div>
+      <div class="featDesc" style="margin-top:10px;line-height:1.9">
+        · All timeframes (5m → 1d)<br>
+        · Custom indicator settings (save profile)<br>
+        · Apply tuned params to live bots<br>
+        · Full dashboard + trade analytics
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="section" style="padding-top:0">
+  <div class="sectionLabel">Getting started</div>
+  <div class="sectionTitle">Three steps to live trading.</div>
+  <p class="sectionSub" style="margin-bottom:28px">No server setup, no Pine licence. Just create an account, connect Hyperliquid and hit start.</p>
+  <div class="howGrid">
+    <div class="howStep">
+      <div class="howNum">01 · Register</div>
+      <div class="howTitle">Create your account</div>
+      <div class="howDesc">Sign up with email and password. Your account is isolated — each user has their own Hyperliquid key vault and separate bot runners.</div>
+    </div>
+    <div class="howStep">
+      <div class="howNum">02 · Connect</div>
+      <div class="howTitle">Link Hyperliquid</div>
+      <div class="howDesc">Paste your HL wallet address and API secret. Keys are encrypted at rest with AES-256-GCM. The server never sees them in plaintext after storage.</div>
+    </div>
+    <div class="howStep">
+      <div class="howNum">03 · Launch</div>
+      <div class="howTitle">Start a Rolex bot</div>
+      <div class="howDesc">Choose a coin, timeframe and position size. Your bot loads 500 candles, detects signals and starts trading live immediately.</div>
+    </div>
+  </div>
+</section>
+
+<!-- AUTH SECTION -->
+<div id="authSection">
+  <!-- Logged-out state -->
+  <div id="authOut" class="authWrap">
+    <div class="authCard highlight">
+      <div class="authTitle">Create account</div>
+      <div class="authSub">Free to start. No credit card.</div>
+      <div id="authForms">
+        <div class="tabs">
+          <button class="tabBtn on" id="tabLogin">Sign in</button>
+          <button class="tabBtn" id="tabReg">Register</button>
+        </div>
+        <div id="loginForm">
+          <div class="field"><label>Email</label><input id="lEmail" type="email" autocomplete="username" placeholder="you@domain.com"></div>
+          <div class="field"><label>Password (min 8 chars)</label><input id="lPass" type="password" autocomplete="current-password" placeholder="••••••••" minlength="8"></div>
+          <button class="authSubmit" id="btnLogin">Sign in to Rolex</button>
+        </div>
+        <div id="regForm" class="hidden">
+          <div class="field"><label>Email</label><input id="rEmail" type="email" autocomplete="username" placeholder="you@domain.com"></div>
+          <div class="field"><label>Password (min 8 chars)</label><input id="rPass" type="password" autocomplete="new-password" placeholder="••••••••" minlength="8"></div>
+          <button class="authSubmit" id="btnReg">Create Rolex account</button>
+        </div>
+        <div class="formMsg" id="authMsg"></div>
+      </div>
+    </div>
+    <div class="authCard" style="display:flex;flex-direction:column;justify-content:space-between">
+      <div>
+        <div class="authTitle">Already running?</div>
+        <div class="authSub">Sign in to see your running bots, trade history, win rates and manage your Hyperliquid connection.</div>
+      </div>
+      <div style="margin-top:24px">
+        <a href="/RolexStrategy.html" class="btnSecondary" style="display:block;text-align:center">Open dashboard →</a>
+        <div style="margin-top:14px;font-size:12px;color:var(--muted)">
+          Dashboard connects to your live bots via WebSocket and shows candle chart, trade log, equity, and win rate in real time.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Logged-in portal -->
+  <div id="authIn" class="portalWrap hidden">
+    <div class="portalHeader">
+      <div>
+        <div class="portalTitle">⌚ Rolex Portal</div>
+        <div class="portalMeta" id="portalMeta">Loading...</div>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <div class="chip" id="hlChip"><div class="dot"></div><span id="hlChipText">HL: —</span></div>
+        <div class="chip" id="tgChip"><div class="dot"></div><span id="tgChipText">TG: —</span></div>
+        <a class="btnSmall primary" href="/RolexStrategy.html">Trading dashboard →</a>
+        <button class="btnSmall" id="btnReload">Reload</button>
+        <button class="btnSmall danger" id="btnLogout">Sign out</button>
+      </div>
+    </div>
+
+    <div class="portalGrid">
+      <!-- BOT LIST -->
+      <div class="pCard">
+        <h4>Your Rolex bots</h4>
+        <div id="botList"></div>
+        <div id="botEmpty" class="emptyState hidden">
+          <span class="emptyIcon">⌚</span>
+          No Rolex bots yet.<br>Create one on the right to get started.
+        </div>
+      </div>
+
+      <!-- CREATE BOT -->
+      <div class="pCard">
+        <h4>New Rolex bot</h4>
+        <div class="createForm">
+          <div class="field">
+            <label>Tier (controls timeframes)</label>
+            <select id="tierSel">
+              <option value="standard">Standard — 5m, 1h</option>
+              <option value="premium">Premium — all timeframes</option>
+            </select>
+          </div>
+          <div class="row2 field" style="margin-bottom:0">
+            <div class="field"><label>Coin</label><select id="coinSel"></select></div>
+            <div class="field"><label>Timeframe</label><select id="tfSel"></select></div>
+          </div>
+          <div class="row2 field" style="margin-bottom:0">
+            <div class="field"><label>TP Distance ($)</label><input id="inTp" type="number" value="50" min="10" step="5"></div>
+            <div class="field"><label>Position size (USD)</label><input id="inSz" type="number" value="100" min="10" step="10"></div>
+          </div>
+          <div class="field" style="display:flex;align-items:center;gap:12px">
+            <input id="chkLive" type="checkbox" style="width:18px;height:18px;accent-color:var(--indigo)" checked>
+            <label style="margin:0;text-transform:none;letter-spacing:0;font-size:13px;color:var(--text);cursor:pointer" for="chkLive">
+              Enable Hyperliquid live trading
+            </label>
+          </div>
+          <button class="authSubmit" id="btnCreate" style="margin-top:4px">Create &amp; start bot</button>
+          <div class="formMsg" id="createMsg"></div>
+        </div>
+
+        <div class="pDivider"></div>
+
+        <!-- Hyperliquid setup -->
+        <h4>Hyperliquid credentials</h4>
+        <div class="createForm">
+          <div class="field"><label>Account address (0x...)</label><input id="hlAddr" placeholder="0x..."></div>
+          <div class="field"><label>API secret key (stored encrypted)</label><input id="hlSecret" type="password" placeholder="0x..."></div>
+          <div class="field" style="display:flex;align-items:center;gap:12px">
+            <input id="chkTestnet" type="checkbox" style="width:18px;height:18px;accent-color:var(--indigo)" checked>
+            <label style="margin:0;text-transform:none;letter-spacing:0;font-size:13px;color:var(--text)" for="chkTestnet">Use testnet</label>
+          </div>
+          <button class="btnSmall primary" id="btnHlSave">Save HL credentials</button>
+          <div class="formMsg" id="hlMsg"></div>
+        </div>
+
+        <div class="pDivider"></div>
+
+        <!-- Telegram -->
+        <h4>Telegram alerts</h4>
+        <div style="font-size:12px;color:var(--muted);line-height:1.7;margin-bottom:12px">
+          Request a link code, then send <code style="background:rgba(255,255,255,.06);padding:1px 5px;border-radius:5px">/link &lt;code&gt;</code> to your bot in Telegram.
+        </div>
+        <button class="btnSmall" id="btnTgCode">Request link code</button>
+        <div id="codeBox" class="hidden"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  Rolex is powered by <a href="/">Market-Strategy-Lab</a> &nbsp;·&nbsp;
+  <a href="/RolexStrategy.html">Live Dashboard</a> &nbsp;·&nbsp;
+  <a href="/quant_portal.html">Quant Portal</a><br>
+  <span style="opacity:.5;font-size:11px;margin-top:6px;display:block">*Latency is exchange-dependent. Rolex does not guarantee execution timing.</span>
+</footer>
+
+<script src="/rolex_api.js"></script>
+<script>
+const COINS = [
+  {c:'BTC',s:'BTCUSDT'},{c:'ETH',s:'ETHUSDT'},{c:'SOL',s:'SOLUSDT'},
+  {c:'AVAX',s:'AVAXUSDT'},{c:'BNB',s:'BNBUSDT'},{c:'XRP',s:'XRPUSDT'},
+];
+const TF_ALL = ['5m','15m','1h','4h','1d'];
+const TIER_TF = { standard:['5m','1h'], premium:TF_ALL };
+
+const hdr = (json) => RolexAPI.hdr(json);
+const hdrPublic = () => RolexAPI.hdrPublic();
+const api = (path, opt) => RolexAPI.api(path, opt);
+function msg(id,text,ok){
+  const el=document.getElementById(id);
+  if(!el) return;
+  el.textContent=text;
+  el.className='formMsg'+(ok!=null?(ok?' ok':' err'):'');
+}
+function escapeHtml(s){ const d=document.createElement('div');d.textContent=s;return d.innerHTML; }
+function scrollToAuth(){ document.getElementById('authSection').scrollIntoView({behavior:'smooth'}); }
+
+// ── Coin / TF selects ──
+(function initSelects(){
+  const cs=document.getElementById('coinSel');
+  cs.innerHTML=COINS.map(c=>`<option value="${c.c}" data-symbol="${c.s}">${c.c}</option>`).join('');
+})();
+
+function renderTF(allowed){
+  const s=document.getElementById('tfSel');
+  const cur=s.value;
+  s.innerHTML=TF_ALL.map(tf=>{
+    const disabled=allowed&&!allowed.includes(tf);
+    return `<option value="${tf}"${disabled?' disabled':''}>${tf}${disabled?' 🔒':''}</option>`;
+  }).join('');
+  if(allowed&&!allowed.includes(s.value)) s.value=allowed[0];
+}
+
+document.getElementById('tierSel').onchange=async()=>{
+  const t=document.getElementById('tierSel').value;
+  try{
+    await api('/api/rolex/entitlements',{method:'POST',headers:hdr(),body:JSON.stringify({tier:t})});
+    renderTF(TIER_TF[t]||TF_ALL);
+    msg('createMsg','✓ Tier updated',true);
+  }catch(e){ msg('createMsg',e.message,false); }
+};
+
+// ── Auth ──
+document.getElementById('tabLogin').onclick=()=>{
+  document.getElementById('tabLogin').classList.add('on');
+  document.getElementById('tabReg').classList.remove('on');
+  document.getElementById('loginForm').classList.remove('hidden');
+  document.getElementById('regForm').classList.add('hidden');
+};
+document.getElementById('tabReg').onclick=()=>{
+  document.getElementById('tabReg').classList.add('on');
+  document.getElementById('tabLogin').classList.remove('on');
+  document.getElementById('regForm').classList.remove('hidden');
+  document.getElementById('loginForm').classList.add('hidden');
+};
+
+function showAuthedUI(email){
+  document.getElementById('authOut').classList.add('hidden');
+  document.getElementById('authIn').classList.remove('hidden');
+  document.getElementById('navAuthBtn').textContent='Dashboard →';
+  document.getElementById('navAuthBtn').onclick=()=>location.href='/RolexStrategy.html';
+  document.getElementById('portalMeta').textContent='Signed in as '+email;
+}
+
+async function onAuth(token,email){
+  RolexAPI.setToken(token);
+  showAuthedUI(email);
+  await loadAll();
+}
+
+document.getElementById('btnLogin').onclick=async()=>{
+  msg('authMsg','');
+  try{
+    const j=await api('/api/quant/auth/login',{
+      method:'POST',headers:hdrPublic(),
+      body:JSON.stringify({email:document.getElementById('lEmail').value,password:document.getElementById('lPass').value})
+    });
+    await onAuth(j.token,j.email);
+  }catch(e){ msg('authMsg',e.message,false); }
+};
+
+document.getElementById('btnReg').onclick=async()=>{
+  msg('authMsg','');
+  try{
+    const j=await api('/api/quant/auth/register',{
+      method:'POST',headers:hdrPublic(),
+      body:JSON.stringify({email:document.getElementById('rEmail').value,password:document.getElementById('rPass').value})
+    });
+    await onAuth(j.token,j.email);
+  }catch(e){ msg('authMsg',e.message,false); }
+};
+
+document.getElementById('btnLogout').onclick=()=>{
+  RolexAPI.clearToken();
+  document.getElementById('authIn').classList.add('hidden');
+  document.getElementById('authOut').classList.remove('hidden');
+  document.getElementById('navAuthBtn').textContent='Get Started';
+  document.getElementById('navAuthBtn').onclick=scrollToAuth;
+};
+
+document.getElementById('btnReload').onclick=()=>loadAll();
+
+// ── Load user data ──
+async function loadAll(){
+  await Promise.all([loadMe(), loadBots()]);
+  const ent=await api('/api/rolex/entitlements',{headers:hdr()}).catch(()=>({tier:'standard',allowedTimeframes:['5m','1h']}));
+  document.getElementById('tierSel').value=ent.tier||'standard';
+  renderTF(ent.allowedTimeframes||TIER_TF.standard);
+}
+
+async function loadMe(){
+  const me=await api('/api/quant/me',{headers:hdr()});
+  document.getElementById('portalMeta').textContent='Signed in as '+me.email;
+  const hl=me.hyperliquid;
+  const hlChip=document.getElementById('hlChip');
+  const hlDot=hlChip.querySelector('.dot');
+  document.getElementById('hlChipText').textContent='HL: '+(hl.configured?(hl.testnet?'testnet':'mainnet'):'not configured');
+  hlChip.className='chip'+(hl.configured?' ok':'');
+  if(hl.configured) hlDot.style.background='var(--green)'; else hlDot.style.background='';
+  const tgChip=document.getElementById('tgChip');
+  document.getElementById('tgChipText').textContent='TG: '+(me.telegramLinked?'linked':'not linked');
+  tgChip.className='chip'+(me.telegramLinked?' ok':' warn');
+}
+
+async function loadBots(){
+  const rows=await api('/api/quant/traders',{headers:hdr()});
+  const bots=rows.filter(t=>t.strategy==='v3');
+  const list=document.getElementById('botList');
+  const empty=document.getElementById('botEmpty');
+  if(!bots.length){ list.innerHTML=''; empty.classList.remove('hidden'); return; }
+  empty.classList.add('hidden');
+  list.innerHTML=bots.map(t=>{
+    const running=t.state&&t.state.isRunning;
+    const live=t.hlLiveMode===1||t.hlLiveMode===true;
+    const pnl=t.state?((t.state.pnl||0).toFixed(2)):null;
+    const wr=t.state&&t.state.winRate!=null?(t.state.winRate*100).toFixed(1)+'%':'—';
+    return `<div class="botCard">
+      <div class="botRow">
+        <div style="min-width:0">
+          <div class="botName">${escapeHtml(t.name||'Rolex')}</div>
+          <div class="botMeta">
+            ${escapeHtml(t.coinName||'BTC')} · ${escapeHtml(t.timeframe)} · ${live?'⚡ HL live':'Paper'}
+            ${pnl!==null?` · P&amp;L <span style="color:${parseFloat(pnl)>=0?'var(--green)':'var(--red)'}">${parseFloat(pnl)>=0?'+':''}$${pnl}</span>`:''}
+            · Win ${wr}
+          </div>
+        </div>
+        <div class="botActions">
+          <div class="statusBadge ${running?'running':''}">
+            <span class="sDot"></span>
+            ${running?'RUNNING':'STOPPED'}
+          </div>
+          <button class="btnSmall danger" onclick="stopBot('${t.id}')">Stop</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+window.stopBot=async function(id){
+  if(!confirm('Stop this Rolex bot? Any open HL position must be closed manually.')) return;
+  try{
+    await api('/api/quant/traders/'+id+'/stop',{method:'POST',headers:hdr()});
+    msg('createMsg','✓ Bot stopped',true);
+    await loadBots();
+  }catch(e){ msg('createMsg',e.message,false); }
+};
+
+// ── Create bot ──
+document.getElementById('btnCreate').onclick=async()=>{
+  const coin=document.getElementById('coinSel').value;
+  const sym=document.querySelector('#coinSel option:checked').dataset.symbol;
+  const tf=document.getElementById('tfSel').value;
+  const tp=parseInt(document.getElementById('inTp').value,10)||50;
+  const sz=parseFloat(document.getElementById('inSz').value)||100;
+  const live=document.getElementById('chkLive').checked;
+  msg('createMsg','Creating bot…',null);
+  try{
+    await api('/api/quant/traders',{
+      method:'POST',headers:hdr(),
+      body:JSON.stringify({name:coin+' Rolex '+tf,timeframe:tf,strategy:'v3',invertLogic:false,tpDistance:tp,hlLiveMode:live,hlSizeUsd:sz,symbol:sym,coinName:coin})
+    });
+    msg('createMsg','✓ Bot created and started!',true);
+    await loadBots();
+  }catch(e){ msg('createMsg',e.message,false); }
+};
+
+// ── HL save ──
+document.getElementById('btnHlSave').onclick=async()=>{
+  msg('hlMsg','Saving…',null);
+  try{
+    await api('/api/quant/hyperliquid',{
+      method:'POST',headers:hdr(),
+      body:JSON.stringify({accountAddress:document.getElementById('hlAddr').value.trim(),secretKey:document.getElementById('hlSecret').value.trim(),testnet:document.getElementById('chkTestnet').checked})
+    });
+    document.getElementById('hlSecret').value='';
+    msg('hlMsg','✓ Credentials saved and encrypted',true);
+    await loadMe();
+  }catch(e){ msg('hlMsg',e.message,false); }
+};
+
+// ── Telegram code ──
+document.getElementById('btnTgCode').onclick=async()=>{
+  const box=document.getElementById('codeBox');
+  box.classList.remove('hidden');
+  box.className='codeBox';
+  box.innerHTML='Requesting…';
+  try{
+    const j=await api('/api/quant/telegram/link-code',{method:'POST',headers:hdr(),body:'{}'});
+    box.innerHTML=`<div style="margin-bottom:8px;color:var(--muted);font-size:11px">Your link code (valid 10 min):</div>
+      <div class="codeHighlight">${j.code}</div>
+      <div style="margin-top:10px;font-size:12px;color:var(--muted)">Send <code style="background:rgba(255,255,255,.08);padding:2px 6px;border-radius:6px">/link ${j.code}</code> to the Telegram bot.</div>`;
+  }catch(e){ box.textContent=e.message; }
+};
+
+// ── Boot ──
+renderTF(TIER_TF.standard);
+(async function boot(){
+  RolexAPI.checkServer();
+  const me=await RolexAPI.restoreSession();
+  if(!me) return;
+  showAuthedUI(me.email);
+  loadAll();
+})();
+</script>
+</body>
+</html>

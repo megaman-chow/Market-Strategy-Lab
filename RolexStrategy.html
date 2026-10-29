@@ -1,0 +1,1129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rolex Dashboard</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&family=JetBrains+Mono:wght@400;700&display=swap');
+:root{
+  --bg:#050709;--surface:#090d12;--card:#0b1018;
+  --border:rgba(255,255,255,.06);--border2:rgba(255,255,255,.1);
+  --text:#c0cedc;--muted:#4a607a;--white:#fff;
+  --green:#00e676;--green2:rgba(0,230,118,.12);
+  --teal:#64ffda;--teal2:rgba(100,255,218,.1);
+  --indigo:#6c63ff;--indigo2:rgba(108,99,255,.14);
+  --red:#ff1744;--red2:rgba(255,23,68,.12);
+  --amber:#ffd740;--amber2:rgba(255,215,64,.1);
+  --mono:'JetBrains Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);font-size:13px;line-height:1.5;-webkit-font-smoothing:antialiased;position:relative;min-height:100vh;overflow-x:hidden}
+body::before{
+  content:'';position:fixed;top:0;left:0;width:100%;height:100%;
+  background:url('images/rolexBg.png') center center/cover no-repeat;
+  opacity:.5;pointer-events:none;z-index:-1;
+  animation:slowZoom 30s ease-in-out infinite alternate;
+}
+@keyframes slowZoom{
+  0%{transform:scale(1);}
+  100%{transform:scale(1.1);}
+}
+body::after{
+  content:'';position:fixed;top:0;left:0;width:100%;height:100%;
+  background:linear-gradient(135deg,rgba(5,7,9,.7) 0%,rgba(9,13,18,.6) 50%,rgba(11,16,24,.7) 100%);
+  pointer-events:none;z-index:-1;
+}
+/* NAV */
+nav{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 24px;height:58px;
+  background:rgba(5,7,9,.88);backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--border);
+  position:sticky;top:0;z-index:100;
+}
+.navLogo{display:flex;align-items:center;gap:9px;text-decoration:none}
+.navLogo .ico{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,var(--indigo),var(--teal));display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 0 16px rgba(108,99,255,.3);overflow:hidden}
+.navLogo .ico img{width:100%;height:100%;object-fit:contain}
+.navLogo span{font-size:15px;font-weight:700;color:var(--white);letter-spacing:.06em;text-transform:uppercase}
+.navRight{display:flex;align-items:center;gap:10px}
+.liveChip{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--green);font-family:var(--mono);border:1px solid rgba(0,230,118,.25);background:rgba(0,230,118,.06);padding:5px 12px;border-radius:999px}
+.liveDot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 1.8s infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.7)}}
+/* LAYOUT */
+.shell{max-width:1280px;margin:0 auto;padding:20px 20px 60px;display:grid;grid-template-columns:1fr 340px;gap:16px;align-items:start}
+@media(max-width:1000px){.shell{grid-template-columns:1fr}}
+.main{display:flex;flex-direction:column;gap:14px}
+.side{display:flex;flex-direction:column;gap:14px}
+/* CARDS */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:18px;transition:all .2s ease;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.card:hover{border-color:var(--border2);box-shadow:0 4px 16px rgba(0,0,0,.25)}
+.cardTitle{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:14px;display:flex;align-items:center;gap:10px}
+.cardTitle span{margin-left:auto;font-size:10px;font-weight:400}
+/* STATS ROW */
+.statsRow{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+@media(max-width:700px){.statsRow{grid-template-columns:1fr 1fr}}
+.statBox{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px 16px;transition:all .2s ease}
+.statBox:hover{border-color:var(--border2);transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.2)}
+.statBox .k{font-size:11px;color:var(--muted);margin-bottom:6px;letter-spacing:.08em;text-transform:uppercase}
+.statBox .v{font-size:22px;font-weight:900;color:var(--white);font-family:var(--mono);line-height:1.1;transition:color .2s ease}
+.statBox .v.pos{color:var(--green)}
+.statBox .v.neg{color:var(--red)}
+.statBox .v.teal{color:var(--teal)}
+.statBox .sub{font-size:11px;color:var(--muted);margin-top:4px}
+/* BOTS SELECTOR */
+.botTabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.botTab{
+  font-size:12px;font-weight:600;padding:8px 14px;border-radius:10px;
+  border:1px solid var(--border2);background:transparent;color:var(--muted);
+  cursor:pointer;font-family:inherit;transition:all .18s;
+  display:flex;align-items:center;gap:8px;
+}
+.botTab.on{border-color:rgba(108,99,255,.5);background:var(--indigo2);color:var(--white)}
+.botTab .tDot{width:7px;height:7px;border-radius:50%;background:var(--muted)}
+.botTab.running .tDot{background:var(--green);animation:pulse 2s infinite}
+.botTab.live .tDot{background:var(--teal)}
+/* CHART */
+.chartWrap{position:relative;width:100%;height:480px}
+canvas#chart{width:100%;height:100%;display:block;border-radius:12px;background:linear-gradient(180deg,rgba(12,16,24,.95),rgba(7,9,12,.98));border:1px solid var(--border2)}
+.chartTog{display:flex;gap:14px;flex-wrap:wrap;margin-top:8px;font-size:12px;color:var(--muted)}
+.chartTog label{display:flex;align-items:center;gap:7px;cursor:pointer}
+.chartTog input{width:16px;height:16px;accent-color:var(--indigo)}
+.chartOverlay{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  background:rgba(5,7,9,.85);border:1px solid var(--border);border-radius:14px;
+  padding:20px 28px;text-align:center;font-size:13px;color:var(--muted);
+  pointer-events:none;
+}
+/* POSITION BANNER */
+.posBanner{
+  border-radius:14px;padding:14px 16px;
+  border:1px solid var(--border2);background:var(--card);
+  display:flex;align-items:center;gap:14px;justify-content:space-between;flex-wrap:wrap;
+}
+.posDir{font-size:18px;font-weight:900;letter-spacing:.06em}
+.posDir.bull{color:var(--green);} .posDir.bear{color:var(--red)}
+.posMeta{font-size:12px;color:var(--muted);line-height:1.7}
+.posPnl{font-size:22px;font-weight:900;font-family:var(--mono)}
+.posPnl.pos{color:var(--green);} .posPnl.neg{color:var(--red)}
+.noBanner{font-size:12px;color:var(--muted);padding:12px 0}
+/* TRADE TABLE */
+.tradeTable{width:100%;border-collapse:collapse;font-size:11px}
+.tradeTable th{color:var(--muted);font-weight:600;letter-spacing:.08em;text-transform:uppercase;text-align:left;padding:6px 8px;border-bottom:1px solid var(--border)}
+.tradeTable td{padding:8px 8px;border-bottom:1px solid rgba(255,255,255,.03);font-family:var(--mono)}
+.tradeTable tr:last-child td{border-bottom:none}
+.tradeTable tr:hover td{background:rgba(255,255,255,.02)}
+.tDir.bull{color:var(--green);} .tDir.bear{color:var(--red)}
+.tHit.tp{color:var(--green);} .tHit.sl{color:var(--red);} .tHit.exit{color:var(--amber);} .tHit.live{color:var(--teal)}
+.tPnl.pos{color:var(--green);} .tPnl.neg{color:var(--red)}
+/* WIN RATE BAR */
+.wrBar{background:rgba(255,255,255,.05);border-radius:999px;height:8px;overflow:hidden;margin-top:6px}
+.wrFill{height:100%;border-radius:999px;background:linear-gradient(90deg,var(--indigo),var(--green));transition:width .6s}
+/* SIGNAL LOG */
+.sigLog{max-height:280px;overflow-y:auto;display:flex;flex-direction:column;gap:4px}
+.sigItem{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:10px;background:var(--card);border:1px solid var(--border);font-size:11px}
+.sigItem .sTag{font-weight:900;font-family:var(--mono);width:38px;text-align:center;font-size:10px;border-radius:5px;padding:2px 4px}
+.sTag.bull{background:var(--green2);color:var(--green)}
+.sTag.bear{background:var(--red2);color:var(--red)}
+.sTag.exit{background:var(--amber2);color:var(--amber)}
+.sigItem .sTime{color:var(--muted);font-family:var(--mono);font-size:10px;margin-left:auto}
+/* MISC */
+.btnSmall{font-size:12px;font-weight:600;font-family:inherit;padding:8px 14px;border-radius:10px;border:1px solid var(--border2);background:rgba(255,255,255,.04);color:var(--text);cursor:pointer;transition:background .2s,border-color .2s}
+.btnSmall:hover{background:rgba(255,255,255,.08);border-color:var(--indigo)}
+.btnSmall.primary{border-color:rgba(108,99,255,.5);background:var(--indigo2);color:var(--white)}
+.btnSmall.danger{border-color:rgba(255,23,68,.35);color:var(--red)}
+.btnSmall.danger:hover{background:var(--red2)}
+.badge{display:inline-flex;align-items:center;gap:6px;font-size:10px;padding:5px 10px;border-radius:999px;border:1px solid var(--border2);color:var(--muted);background:rgba(255,255,255,.03)}
+.badge .dot{width:7px;height:7px;border-radius:50%;background:var(--muted)}
+.badge.on .dot{background:var(--green);animation:pulse 2s infinite} .badge.on{color:var(--green);border-color:rgba(0,230,118,.3)}
+.badge.live .dot{background:var(--teal)} .badge.live{color:var(--teal);border-color:rgba(100,255,218,.3)}
+.emptyMsg{text-align:center;padding:24px;color:var(--muted);font-size:12px;line-height:1.8}
+/* AUTH WALL */
+#authWall{max-width:440px;margin:80px auto;padding:0 20px}
+.authBox{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:28px}
+.authBox h2{font-size:18px;font-weight:700;color:var(--white);margin-bottom:6px}
+.authBox p{font-size:13px;color:var(--muted);margin-bottom:20px}
+.tabs2{display:flex;gap:6px;margin-bottom:16px}
+.tabs2 button{flex:1;padding:9px;border-radius:9px;border:1px solid var(--border2);background:transparent;color:var(--muted);font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;transition:all .18s}
+.tabs2 button.on{border-color:rgba(108,99,255,.5);background:var(--indigo2);color:var(--white)}
+.field{margin-bottom:12px}
+.field label{display:block;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.field input{width:100%;background:rgba(0,0,0,.4);border:1px solid var(--border2);color:var(--white);padding:11px 13px;border-radius:11px;font-family:'Inter',sans-serif;font-size:13px;outline:none}
+.field input:focus{border-color:var(--indigo);box-shadow:0 0 0 3px rgba(108,99,255,.12)}
+.field input::placeholder{color:var(--muted)}
+.authSubmit{width:100%;padding:13px;border-radius:12px;background:linear-gradient(180deg,rgba(108,99,255,.65),rgba(108,99,255,.35));border:1px solid rgba(108,99,255,.55);color:var(--white);font-size:14px;font-weight:700;font-family:inherit;cursor:pointer}
+.formMsg{font-size:12px;margin-top:10px}
+.formMsg.ok{color:var(--green)} .formMsg.err{color:var(--red)}
+.hidden{display:none!important}
+/* PREMIUM + TOOLBAR */
+.tierChip{font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;padding:5px 11px;border-radius:999px;border:1px solid var(--border2)}
+.tierChip.standard{color:var(--muted)}
+.tierChip.premium{color:var(--amber);border-color:rgba(255,215,64,.35);background:var(--amber2)}
+.chartToolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.chartToolbar .left{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.chartToolbar select{background:rgba(0,0,0,.45);border:1px solid var(--border2);color:var(--white);padding:8px 10px;border-radius:10px;font-family:inherit;font-size:12px}
+.btnGear{display:flex;align-items:center;gap:7px}
+.tradeFilters{display:flex;gap:6px;margin-bottom:10px}
+.filterBtn{font-size:11px;font-weight:600;padding:6px 12px;border-radius:999px;border:1px solid var(--border2);background:transparent;color:var(--muted);cursor:pointer;font-family:inherit}
+.filterBtn.on{border-color:rgba(108,99,255,.5);background:var(--indigo2);color:var(--white)}
+.premiumCard{background:linear-gradient(135deg,rgba(255,215,64,.08),rgba(108,99,255,.08));border:1px solid rgba(255,215,64,.2);border-radius:14px;padding:14px;font-size:12px;line-height:1.7;color:var(--muted)}
+.premiumCard a{color:var(--teal);text-decoration:none;font-weight:600}
+/* SETTINGS DRAWER (TradingView-style) */
+.setOverlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;opacity:0;pointer-events:none;transition:opacity .2s}
+.setOverlay.open{opacity:1;pointer-events:auto}
+.setPanel{
+  position:fixed;top:0;right:0;width:min(420px,100vw);height:100vh;z-index:201;
+  background:var(--surface);border-left:1px solid var(--border);
+  transform:translateX(100%);transition:transform .25s ease;
+  display:flex;flex-direction:column;overflow:hidden;
+  pointer-events:none;
+}
+.setPanel.open{transform:translateX(0);pointer-events:auto}
+.setHeader{display:flex;align-items:flex-start;justify-content:space-between;padding:16px 18px;border-bottom:1px solid var(--border)}
+.setTitle{font-size:14px;font-weight:800;color:var(--white)}
+.setSub{font-size:11px;color:var(--muted);margin-top:4px}
+.setClose{background:transparent;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:4px 8px}
+.setBody{flex:1;overflow-y:auto;padding:12px 14px 20px}
+.setGroup{margin-bottom:16px}
+.setGroupTitle{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--indigo);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+.setGrid{display:flex;flex-direction:column;gap:12px}
+.setRow{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px 12px}
+.setLabelRow{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}
+.setLabel{font-size:12px;font-weight:600;color:var(--text)}
+.setLabel.chk{display:flex;align-items:center;gap:8px;cursor:pointer}
+.setInput{width:72px;background:rgba(0,0,0,.45);border:1px solid var(--border2);color:var(--white);padding:6px 8px;border-radius:8px;font-family:var(--mono);font-size:12px;text-align:right}
+.setSelect{width:100px;background:rgba(0,0,0,.45);border:1px solid var(--border2);color:var(--white);padding:6px 8px;border-radius:8px;font-family:var(--mono);font-size:12px;cursor:pointer}
+.setRange{width:100%;accent-color:var(--indigo);margin-top:2px}
+.setHint{font-size:10px;color:var(--muted);line-height:1.5;margin-top:4px}
+.setFooter{display:flex;flex-wrap:wrap;gap:8px;padding:12px 14px;border-top:1px solid var(--border);background:rgba(0,0,0,.2)}
+.setBtn{font-size:11px;font-weight:700;padding:9px 12px;border-radius:10px;border:1px solid var(--border2);background:rgba(255,255,255,.04);color:var(--text);cursor:pointer;font-family:inherit;flex:1;min-width:120px}
+.setBtn.primary{border-color:rgba(108,99,255,.5);background:var(--indigo2);color:var(--white)}
+.setBtn.accent{border-color:rgba(100,255,218,.4);background:var(--teal2);color:var(--teal)}
+.setBtn.ghost{flex:0 0 auto;min-width:auto}
+.setMsg{font-size:11px;padding:0 14px 12px;color:var(--muted)}
+.setMsg.ok{color:var(--green)} .setMsg.err{color:var(--red)}
+.premiumGate{margin:0 14px 10px;padding:10px 12px;border-radius:12px;background:rgba(255,215,64,.08);border:1px solid rgba(255,215,64,.2);font-size:11px;line-height:1.6;color:var(--muted)}
+.premiumGate a{color:var(--teal);font-weight:600;margin-left:6px}
+.premiumBadge{display:inline-block;font-size:9px;font-weight:800;letter-spacing:.1em;padding:2px 6px;border-radius:4px;background:var(--amber2);color:var(--amber);margin-right:6px}
+.paramPill{font-size:10px;color:var(--muted);padding:4px 10px;border-radius:999px;border:1px solid var(--border2);background:rgba(255,255,255,.03)}
+</style>
+</head>
+<body>
+
+<nav>
+  <a class="navLogo" href="/RolexHome.html">
+    <div class="ico"><img src="images/rolexLogo.png" alt="Rolex"></div>
+    <span>Rolex</span>
+  </a>
+  <div class="navRight">
+    <span class="tierChip standard hidden" id="tierChip">Standard</span>
+    <div class="liveChip" id="wsChip"><div class="liveDot" id="wsDot"></div><span id="wsText">Sign in for live</span></div>
+    <a href="/RolexHome.html" class="btnSmall">Home</a>
+    <button class="btnSmall danger hidden" id="btnLogout">Sign out</button>
+  </div>
+</nav>
+
+<!-- AUTH WALL (shown when not logged in) -->
+<div id="authWall">
+  <div class="authBox">
+    <h2>Sign in to your dashboard</h2>
+    <p>View your Rolex bots, live trades, trade history and win rates.</p>
+    <div class="tabs2">
+      <button type="button" class="on" id="tab1">Sign in</button>
+      <button type="button" id="tab2">Register</button>
+    </div>
+    <div id="f1">
+      <div class="field"><label>Email</label><input id="aEmail" type="email" autocomplete="username" placeholder="you@domain.com"></div>
+      <div class="field"><label>Password (min 8 chars)</label><input id="aPass" type="password" autocomplete="current-password" placeholder="••••••••" minlength="8"></div>
+      <button type="button" class="authSubmit" id="btnLogin">Sign in</button>
+    </div>
+    <div id="f2" class="hidden">
+      <div class="field"><label>Email</label><input id="bEmail" type="email" autocomplete="username" placeholder="you@domain.com"></div>
+      <div class="field"><label>Password (min 8)</label><input id="bPass" type="password" autocomplete="new-password" placeholder="••••••••"></div>
+      <button type="button" class="authSubmit" id="btnReg">Create account</button>
+    </div>
+    <div class="formMsg" id="authMsg"></div>
+  </div>
+</div>
+
+<!-- DASHBOARD (shown when logged in) -->
+<div id="dashboard" class="hidden">
+<div class="shell">
+
+  <!-- MAIN COLUMN -->
+  <div class="main">
+
+    <!-- Bot selector + stats -->
+    <div class="card">
+      <div class="cardTitle">Your Rolex Bots <span id="lastUpdate"></span></div>
+      <div class="botTabs" id="botTabs">
+        <div class="emptyMsg">Loading bots…</div>
+      </div>
+      <div class="statsRow" id="statsRow">
+        <div class="statBox"><div class="k">P&amp;L</div><div class="v" id="sPnl">—</div><div class="sub" id="sPnlSub"></div></div>
+        <div class="statBox"><div class="k">Win rate</div><div class="v teal" id="sWr">—</div><div class="wrBar"><div class="wrFill" id="wrFill" style="width:0%"></div></div></div>
+        <div class="statBox"><div class="k">Total trades</div><div class="v" id="sTrades">—</div><div class="sub" id="sWins"></div></div>
+        <div class="statBox"><div class="k">Open position</div><div class="v" id="sPos">—</div><div class="sub" id="sPosSub"></div></div>
+      </div>
+    </div>
+
+    <!-- Position banner -->
+    <div id="posCard" class="card hidden">
+      <div class="cardTitle">Live Position</div>
+      <div id="posBanner"></div>
+    </div>
+
+    <!-- Chart card -->
+    <div class="card">
+      <div class="cardTitle">Strategy Chart <span id="chartLabel" style="font-size:12px;color:var(--text)">BTC · 1h</span></div>
+      <div class="chartToolbar">
+        <div class="left">
+          <select id="chartCoin"></select>
+          <select id="chartTf">
+            <option value="5m">5m</option><option value="15m">15m</option>
+            <option value="1h" selected>1h</option><option value="4h">4h</option><option value="1d">1d</option>
+          </select>
+          <button class="btnSmall" id="btnChartLoad" type="button">Load</button>
+          <span class="paramPill" id="paramPill">EMA 200 / 20 · ATR 14</span>
+        </div>
+        <button class="btnSmall btnGear primary" id="btnSettings" type="button">⚙ Indicator settings</button>
+      </div>
+      <div class="chartWrap">
+        <canvas id="chart"></canvas>
+        <div class="chartOverlay" id="chartOverlay">Select a bot or load data</div>
+      </div>
+      <div class="chartTog">
+        <label><input type="checkbox" id="togEntries" checked> Show entries</label>
+        <label><input type="checkbox" id="togExits" checked> Show exits</label>
+        <label><input type="checkbox" id="togEMA" checked> EMA (200 / 20)</label>
+      </div>
+      <div class="statsRow" style="margin-top:12px;grid-template-columns:repeat(4,1fr)">
+        <div class="statBox"><div class="k">Chart entries</div><div class="v teal" id="sigEntries">—</div><div class="sub" id="sigBullBear"></div></div>
+        <div class="statBox"><div class="k">Chart exits</div><div class="v" id="sigExits">—</div></div>
+        <div class="statBox"><div class="k">Last price</div><div class="v" id="sigPrice">—</div></div>
+        <div class="statBox"><div class="k">Detection</div><div class="v" style="font-size:13px" id="sigMode">Flat-only entries</div></div>
+      </div>
+    </div>
+
+    <!-- Trade History Table -->
+    <div class="card">
+      <div class="cardTitle">Trade History <span id="tradeCount"></span></div>
+      <div class="tradeFilters">
+        <button class="filterBtn on" data-filter="all" type="button">All</button>
+        <button class="filterBtn" data-filter="win" type="button">Wins</button>
+        <button class="filterBtn" data-filter="loss" type="button">Losses</button>
+        <button class="filterBtn" data-filter="tp" type="button">TP</button>
+        <button class="filterBtn" data-filter="exit" type="button">EXIT</button>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="tradeTable">
+          <thead>
+            <tr>
+              <th>Direction</th>
+              <th>Entry</th>
+              <th>Exit</th>
+              <th>Result</th>
+              <th>P&amp;L</th>
+              <th>Hit</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody id="tradeBody">
+            <tr><td colspan="7" class="emptyMsg">Select a bot to load trades</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- SIDE COLUMN -->
+  <div class="side">
+
+    <!-- Bot detail card -->
+    <div class="card">
+      <div class="cardTitle">Selected Bot</div>
+      <div id="botDetail" class="emptyMsg">No bot selected</div>
+    </div>
+
+    <!-- Live signals -->
+    <div class="card">
+      <div class="cardTitle">Signal Log <span id="sigCount"></span></div>
+      <div class="sigLog" id="sigLog">
+        <div class="emptyMsg">Signals appear as candles close</div>
+      </div>
+    </div>
+
+    <!-- Equity mini-chart -->
+    <div class="card">
+      <div class="cardTitle">Equity Curve</div>
+      <canvas id="equity" style="width:100%;height:120px;border-radius:8px;background:var(--card)"></canvas>
+    </div>
+
+    <div class="card hidden" id="premiumUpsell">
+      <div class="premiumCard">
+        <span class="premiumBadge">PREMIUM</span>
+        Unlock custom indicator inputs, save your profile, apply settings to live bots, and all timeframes.
+        <a href="/RolexHome.html#authSection">Upgrade on Rolex Home →</a>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="card">
+      <div class="cardTitle">Actions</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button class="btnSmall" id="btnRefresh">↻ Refresh</button>
+        <button class="btnSmall danger hidden" id="btnStopBot">Stop selected bot</button>
+        <a class="btnSmall primary" href="/RolexHome.html" style="text-align:center;text-decoration:none">＋ New bot</a>
+      </div>
+    </div>
+
+  </div>
+</div>
+</div>
+
+<div class="setOverlay" id="setOverlay"></div>
+<div class="setPanel" id="setPanel">
+  <div id="settingsMount"></div>
+</div>
+
+<script src="/rolex_api.js"></script>
+<script src="/rolex_v3_params.js"></script>
+<script src="/rolex_settings_ui.js"></script>
+<script>
+// ─── CONFIG ───────────────────────────────────────────────────────────────────
+const COINS=[{c:'BTC',s:'BTCUSDT'},{c:'ETH',s:'ETHUSDT'},{c:'SOL',s:'SOLUSDT'},{c:'AVAX',s:'AVAXUSDT'},{c:'BNB',s:'BNBUSDT'},{c:'XRP',s:'XRPUSDT'}];
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let jwt='';
+let userTier='standard';
+let userFeatures={};
+let strategyParams={};
+let settingsPanel=null;
+let allBots=[];
+let activeBotId=null;
+let allTrades=[];
+let tradeFilter='all';
+let chartCandles=[];
+let chartEntries=[];
+let chartExits=new Set();
+let chartEmaT=[];
+let chartEmaE=[];
+let signalLog=[];
+let ws=null;
+let dashboardBound=false;
+
+// ─── AUTH ─────────────────────────────────────────────────────────────────────
+const hdr = (json) => RolexAPI.hdr(json);
+const hdrPublic = () => RolexAPI.hdrPublic();
+const api = (path, opt) => RolexAPI.api(path, opt);
+function wsHost(){
+  if(RolexAPI.API_BASE){const u=new URL(RolexAPI.API_BASE);return u.host;}
+  return location.host;
+}
+function setMsg(id,t,ok){const e=document.getElementById(id);if(!e)return;e.textContent=t;e.className='formMsg'+(ok!=null?(ok?' ok':' err'):'');}
+function escapeHtml(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+
+function showFatal(msg){
+  const wall=document.getElementById('authWall');
+  if(!wall) return;
+  wall.innerHTML='<div class="authBox"><h2>Page failed to load</h2><p style="color:var(--red)">'+escapeHtml(msg)+'</p><p style="margin-top:12px;font-size:12px;color:var(--muted)">Hard-refresh (Ctrl+F5), then ensure <code>npm start</code> is running.</p></div>';
+}
+
+function bindAuthControls(){
+  const tab1=document.getElementById('tab1');
+  const tab2=document.getElementById('tab2');
+  const btnLogin=document.getElementById('btnLogin');
+  const btnReg=document.getElementById('btnReg');
+  const btnLogout=document.getElementById('btnLogout');
+  if(!tab1||!tab2||!btnLogin||!btnReg) throw new Error('Auth controls missing from page');
+
+  tab1.onclick=()=>{
+    tab1.classList.add('on'); tab2.classList.remove('on');
+    document.getElementById('f1').classList.remove('hidden');
+    document.getElementById('f2').classList.add('hidden');
+  };
+  tab2.onclick=()=>{
+    tab2.classList.add('on'); tab1.classList.remove('on');
+    document.getElementById('f2').classList.remove('hidden');
+    document.getElementById('f1').classList.add('hidden');
+  };
+
+  btnLogin.onclick=async()=>{
+    setMsg('authMsg','');
+    btnLogin.disabled=true;
+    try{
+      const email=document.getElementById('aEmail').value.trim();
+      const password=document.getElementById('aPass').value;
+      if(!email||!password) throw new Error('Email and password required');
+      const j=await api('/api/quant/auth/login',{method:'POST',headers:hdrPublic(),body:JSON.stringify({email,password})});
+      jwt=j.token; RolexAPI.setToken(jwt);
+      await showDashboard();
+    }catch(e){ setMsg('authMsg',e.message,false); }
+    finally{ btnLogin.disabled=false; }
+  };
+
+  btnReg.onclick=async()=>{
+    setMsg('authMsg','');
+    btnReg.disabled=true;
+    try{
+      const email=document.getElementById('bEmail').value.trim();
+      const password=document.getElementById('bPass').value;
+      if(!email||!password) throw new Error('Email and password required');
+      if(password.length<8) throw new Error('Password must be at least 8 characters');
+      const j=await api('/api/quant/auth/register',{method:'POST',headers:hdrPublic(),body:JSON.stringify({email,password})});
+      jwt=j.token; RolexAPI.setToken(jwt);
+      await showDashboard();
+    }catch(e){ setMsg('authMsg',e.message,false); }
+    finally{ btnReg.disabled=false; }
+  };
+
+  if(btnLogout){
+    btnLogout.onclick=()=>{
+      disconnectWS();
+      RolexAPI.clearToken();
+      jwt='';
+      location.reload();
+    };
+  }
+
+  ['aEmail','aPass','bEmail','bPass'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(!el) return;
+    el.addEventListener('keydown',(ev)=>{
+      if(ev.key!=='Enter') return;
+      ev.preventDefault();
+      (document.getElementById('f2').classList.contains('hidden')?btnLogin:btnReg).click();
+    });
+  });
+}
+
+// ─── SHOW/HIDE ────────────────────────────────────────────────────────────────
+function updateTierUI(){
+  const chip=document.getElementById('tierChip');
+  chip.classList.remove('hidden','standard','premium');
+  chip.classList.add(userTier==='premium'?'premium':'standard');
+  chip.textContent=userTier==='premium'?'★ Premium':'Standard';
+  document.getElementById('premiumUpsell').classList.toggle('hidden',userTier==='premium');
+}
+
+function updateParamPill(){
+  const p=strategyParams;
+  document.getElementById('paramPill').textContent=
+    `EMA ${p.emaTrendLen}/${p.emaExitLen} · ATR ${p.atrLen} · Swing ${p.swingLen}`;
+  const emaTog=document.querySelector('.chartTog label:last-child');
+  if(emaTog) emaTog.lastChild.textContent=` EMA (${p.emaTrendLen} / ${p.emaExitLen})`;
+}
+
+function initSettingsPanel(){
+  if(settingsPanel) return;
+  settingsPanel=RolexSettingsUI.mountPanel({
+    containerId:'settingsMount',
+    params:strategyParams,
+    tier:userTier,
+    features:userFeatures,
+    onClose:closeSettings,
+    onApply:(p,opt)=>{strategyParams={...p};updateParamPill();rerunChartDetection();if(!opt?.silent&&settingsPanel)settingsPanel.setMsg(opt?.preview?'Preview updated':'Applied to chart',true);},
+    onReset:(p)=>{strategyParams={...p};updateParamPill();rerunChartDetection();},
+    onSave:async(p)=>api('/api/rolex/settings',{method:'POST',headers:hdr(),body:JSON.stringify({params:p})}),
+    onApplyBot:async(p)=>{
+      if(!activeBotId) throw new Error('Select a bot first');
+      await api('/api/quant/traders/'+activeBotId+'/strategy-params',{method:'PUT',headers:hdr(),body:JSON.stringify({params:p})});
+      strategyParams={...p};
+      updateParamPill();
+      rerunChartDetection();
+    },
+  });
+}
+
+function remountSettingsPanel(){
+  document.getElementById('settingsMount').innerHTML='';
+  settingsPanel=null;
+  initSettingsPanel();
+}
+
+function openSettings(){
+  initSettingsPanel();
+  settingsPanel.setParams(strategyParams);
+  document.getElementById('setPanel').classList.add('open');
+  document.getElementById('setOverlay').classList.add('open');
+}
+function closeSettings(){
+  document.getElementById('setPanel').classList.remove('open');
+  document.getElementById('setOverlay').classList.remove('open');
+}
+
+async function loadUserSettings(){
+  try{
+    const s=await api('/api/rolex/settings',{headers:hdr(false)});
+    userTier=s.tier||'standard';
+    userFeatures=s.features||{};
+    strategyParams={...RolexV3.sanitizeParams(s.params)};
+    updateTierUI();
+    updateParamPill();
+  }catch{}
+}
+
+async function showDashboard(){
+  document.getElementById('authWall').classList.add('hidden');
+  document.getElementById('dashboard').classList.remove('hidden');
+  document.getElementById('btnLogout').classList.remove('hidden');
+  document.getElementById('chartCoin').innerHTML=COINS.map(c=>`<option value="${c.c}">${c.c}</option>`).join('');
+  bindDashboardControls();
+  await loadUserSettings();
+  initSettingsPanel();
+  await loadBots();
+  connectWS();
+}
+
+// ─── BOOT ─────────────────────────────────────────────────────────────────────
+async function tryRestoreSession(){
+  if(!RolexAPI.getToken()) return;
+  setMsg('authMsg','Restoring your session…',null);
+  const me=await RolexAPI.restoreSession();
+  if(me){
+    jwt=RolexAPI.getToken();
+    await showDashboard();
+  }else{
+    jwt='';
+    setMsg('authMsg','');
+    setWsIdle();
+  }
+}
+
+function initPage(){
+  if(typeof RolexAPI==='undefined'){
+    showFatal('rolex_api.js failed to load.');
+    return;
+  }
+  if(typeof RolexV3==='undefined'){
+    showFatal('rolex_v3_params.js failed to load.');
+    return;
+  }
+  strategyParams={...RolexV3.V3_DEFAULTS};
+  try{ bindAuthControls(); }
+  catch(e){ showFatal(e.message); return; }
+  setWsIdle();
+  RolexAPI.checkServer();
+  tryRestoreSession();
+}
+
+if(document.readyState==='loading'){
+  document.addEventListener('DOMContentLoaded',initPage);
+}else{
+  initPage();
+}
+
+// ─── WS ───────────────────────────────────────────────────────────────────────
+function disconnectWS(){
+  if(!ws) return;
+  try{ ws.onclose=null; ws.close(); }catch{}
+  ws=null;
+}
+
+function connectWS(){
+  if(!jwt) return;
+  if(ws&&ws.readyState<2){return;}
+  document.getElementById('wsText').textContent='Connecting…';
+  const proto=location.protocol==='https:'?'wss:':'ws:';
+  ws=new WebSocket(proto+'//'+wsHost());
+  ws.onopen=()=>{updateWsChip(true);};
+  ws.onclose=()=>{
+    updateWsChip(false);
+    if(jwt) setTimeout(connectWS,4000);
+  };
+  ws.onerror=()=>{updateWsChip(false);};
+  ws.onmessage=(ev)=>{
+    try{
+      const d=JSON.parse(ev.data);
+      if(d.traderId!==activeBotId) return;
+      if(d.type==='new_candle'){
+        reloadBotState();
+        document.getElementById('lastUpdate').textContent='Live · '+new Date().toLocaleTimeString();
+      }
+      if(d.type==='position_opened'){
+        pushSignalLog({type:'entry',dir:d.position?.dir||d.position?.direction,time:Date.now(),price:d.position?.entry});
+        reloadBotState();
+      }
+      if(d.type==='position_closed'){
+        pushSignalLog({type:'exit',time:Date.now(),price:d.trade?.exitPrice});
+        reloadBotState();
+        loadTrades(activeBotId);
+      }
+      if(d.type==='signal'){
+        pushSignalLog({type:'entry',dir:d.direction,time:Date.now(),price:d.price});
+      }
+    }catch{}
+  };
+}
+function setWsIdle(){
+  document.getElementById('wsText').textContent='Sign in for live';
+  document.getElementById('wsDot').style.background='var(--muted)';
+  document.getElementById('wsChip').style.borderColor='var(--border2)';
+  document.getElementById('wsChip').style.color='var(--muted)';
+}
+
+function updateWsChip(on){
+  document.getElementById('wsText').textContent=on?'Live':'Reconnecting…';
+  document.getElementById('wsDot').style.background=on?'var(--green)':'var(--amber)';
+  document.getElementById('wsChip').style.borderColor=on?'rgba(0,230,118,.25)':'rgba(255,215,64,.25)';
+  document.getElementById('wsChip').style.color=on?'var(--green)':'var(--amber)';
+}
+
+// ─── BOTS ─────────────────────────────────────────────────────────────────────
+async function loadBots(){
+  try{
+    const rows=await api('/api/quant/traders',{headers:hdr()});
+    allBots=rows.filter(t=>t.strategy==='v3');
+    renderBotTabs();
+    if(allBots.length&&!activeBotId) selectBot(allBots[0].id);
+    else if(activeBotId) selectBot(activeBotId);
+  }catch(e){document.getElementById('botTabs').innerHTML='<div class="emptyMsg">Failed to load: '+escapeHtml(e.message)+'</div>';}
+}
+
+function renderBotTabs(){
+  const tabs=document.getElementById('botTabs');
+  if(!allBots.length){
+    tabs.innerHTML='<div class="emptyMsg">No Rolex bots. <a href="/RolexHome.html" style="color:var(--indigo)">Create one →</a></div>';
+    loadChart('BTC','1h').catch(()=>{});
+    return;
+  }
+  tabs.innerHTML=allBots.map(t=>{
+    const running=t.state&&t.state.isRunning;
+    const live=t.hlLiveMode===1||t.hlLiveMode===true;
+    const cls=['botTab'];
+    if(t.id===activeBotId) cls.push('on');
+    if(running) cls.push('running');
+    if(live) cls.push('live');
+    return `<button class="${cls.join(' ')}" onclick="selectBot('${t.id}')"><span class="tDot"></span>${escapeHtml(t.coinName||'BTC')} ${escapeHtml(t.timeframe)}</button>`;
+  }).join('');
+}
+
+async function selectBot(id){
+  activeBotId=id;
+  renderBotTabs();
+  const bot=allBots.find(t=>t.id===id);
+  if(!bot) return;
+  if(bot.strategyParams){
+    strategyParams=RolexV3.sanitizeParams(
+      typeof bot.strategyParams==='object'?bot.strategyParams:RolexV3.parseParamsJson(bot.strategyParams)
+    );
+  } else {
+    strategyParams={...RolexV3.V3_DEFAULTS};
+  }
+  if(settingsPanel) settingsPanel.setParams(strategyParams);
+  updateParamPill();
+  document.getElementById('chartCoin').value=bot.coinName||'BTC';
+  document.getElementById('chartTf').value=bot.timeframe||'1h';
+  renderBotDetail(bot);
+  updateStats(bot);
+  await Promise.all([loadTrades(id), loadChartForBot(bot)]);
+  document.getElementById('btnStopBot').classList.remove('hidden');
+}
+
+async function reloadBotState(){
+  const rows=await api('/api/quant/traders',{headers:hdr()}).catch(()=>null);
+  if(!rows) return;
+  allBots=rows.filter(t=>t.strategy==='v3');
+  renderBotTabs();
+  const bot=allBots.find(t=>t.id===activeBotId);
+  if(bot){renderBotDetail(bot);updateStats(bot);}
+}
+
+function renderBotDetail(bot){
+  const st=bot.state;
+  const running=st&&st.isRunning;
+  const live=bot.hlLiveMode===1||bot.hlLiveMode===true;
+  document.getElementById('botDetail').innerHTML=`
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+      <div class="badge ${running?'on':''}"><div class="dot"></div>${running?'Running':'Stopped'}</div>
+      ${live?'<div class="badge live"><div class="dot"></div>HL Live</div>':''}
+    </div>
+    <div style="font-size:12px;line-height:1.9;color:var(--muted)">
+      <div><b style="color:var(--text)">Bot:</b> ${escapeHtml(bot.name||'Rolex')}</div>
+      <div><b style="color:var(--text)">Coin:</b> ${escapeHtml(bot.coinName||'BTC')} (${escapeHtml(bot.symbol||'—')})</div>
+      <div><b style="color:var(--text)">Timeframe:</b> ${escapeHtml(bot.timeframe)}</div>
+      <div><b style="color:var(--text)">TP distance:</b> $${bot.tpDistance||50}</div>
+      <div><b style="color:var(--text)">Size USD:</b> $${bot.hlSizeUsd||100}</div>
+      <div><b style="color:var(--text)">Candles loaded:</b> ${st?st.candles:'—'}</div>
+      <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
+        <b style="color:var(--text)">Indicator:</b> EMA ${strategyParams.emaTrendLen}/${strategyParams.emaExitLen},
+        ATR ${strategyParams.atrLen}, swing ${strategyParams.swingLen}
+        ${userTier!=='premium'?'<span style="color:var(--amber)"> · default (Premium to save custom)</span>':''}
+      </div>
+    </div>`;
+}
+
+function updateStats(bot){
+  const st=bot.state;
+  if(!st){['sPnl','sWr','sTrades','sPos'].forEach(id=>{document.getElementById(id).textContent='—';});return;}
+  const pnl=(st.pnl||0);
+  const wr=((st.winRate||0)*100);
+  const pnlEl=document.getElementById('sPnl');
+  pnlEl.textContent=(pnl>=0?'+$':'−$')+Math.abs(pnl).toFixed(2);
+  pnlEl.className='v'+(pnl>=0?' pos':' neg');
+  document.getElementById('sPnlSub').textContent='from $10,000 paper start';
+  document.getElementById('sWr').textContent=wr.toFixed(1)+'%';
+  document.getElementById('wrFill').style.width=wr.toFixed(1)+'%';
+  document.getElementById('sTrades').textContent=st.trades||0;
+  const wins=st.trades&&st.winRate?Math.round((st.winRate||0)*st.trades):null;
+  document.getElementById('sWins').textContent=wins!=null?wins+' wins / '+(st.trades-wins)+' losses':'';
+  const op=st.openPosition;
+  const posEl=document.getElementById('sPos');
+  const posDir=op&&(op.dir||op.direction);
+  if(op&&posDir){
+    posEl.textContent=posDir==='bullish'?'LONG':'SHORT';
+    posEl.className='v'+(posDir==='bullish'?' pos':' neg');
+    document.getElementById('sPosSub').textContent='Entry $'+op.entry.toFixed(2);
+    renderPosBanner(op,st.balance);
+  } else {
+    posEl.textContent='None';
+    posEl.className='v';
+    document.getElementById('sPosSub').textContent='';
+    document.getElementById('posCard').classList.add('hidden');
+  }
+  document.getElementById('lastUpdate').textContent='Updated '+new Date().toLocaleTimeString();
+}
+
+function renderPosBanner(op,bal){
+  const card=document.getElementById('posCard');
+  const banner=document.getElementById('posBanner');
+  const posDir=op.dir||op.direction;
+  const isBull=posDir==='bullish';
+  card.classList.remove('hidden');
+  banner.innerHTML=`
+    <div>
+      <div class="posDir ${isBull?'bull':'bear'}">${isBull?'▲ LONG':'▼ SHORT'}</div>
+      <div class="posMeta">
+        Entry: <b>$${op.entry.toFixed(2)}</b> &nbsp;·&nbsp;
+        TP: <b>$${op.tp?.toFixed(2)||'—'}</b> &nbsp;·&nbsp;
+        SL: <b>$${op.sl?.toFixed(2)||'—'}</b><br>
+        Size: <b>${(op.size||0).toFixed(4)} contracts</b>
+      </div>
+    </div>
+    <div class="posPnl ${isBull?'pos':'neg'}">Open</div>`;
+}
+
+function filterTrades(trades){
+  if(tradeFilter==='all') return trades;
+  if(tradeFilter==='win') return trades.filter(t=>(t.pnl||0)>0);
+  if(tradeFilter==='loss') return trades.filter(t=>(t.pnl||0)<0);
+  if(tradeFilter==='tp') return trades.filter(t=>t.hit==='TP');
+  if(tradeFilter==='exit') return trades.filter(t=>t.hit==='EXIT');
+  return trades;
+}
+
+function renderTradeTable(trades){
+  const tbody=document.getElementById('tradeBody');
+  const cnt=document.getElementById('tradeCount');
+  const filtered=filterTrades(trades);
+  cnt.textContent=filtered.length+' / '+trades.length+' trades';
+  if(!filtered.length){tbody.innerHTML='<tr><td colspan="7" class="emptyMsg">No trades match this filter</td></tr>';return;}
+  tbody.innerHTML=filtered.map(t=>{
+      const dir=t.direction==='bullish'?'LONG':'SHORT';
+      const dirCls=t.direction==='bullish'?'bull':'bear';
+      const pnl=(t.pnl||0);
+      const hitCls=t.hit==='TP'?'tp':t.hit==='SL'?'sl':t.hit==='EXIT'?'exit':'live';
+      const date=t.entryTime?new Date(t.entryTime).toLocaleDateString():'-';
+      return `<tr>
+        <td class="tDir ${dirCls}">${dir}</td>
+        <td>$${(t.entryPrice||0).toFixed(2)}</td>
+        <td>$${(t.exitPrice||0).toFixed(2)}</td>
+        <td style="color:var(--muted)">${((t.result||0)*100).toFixed(1)}%</td>
+        <td class="tPnl ${pnl>=0?'pos':'neg'}">${pnl>=0?'+':'-'}$${Math.abs(pnl).toFixed(2)}</td>
+        <td class="tHit ${hitCls}">${t.hit||'-'}</td>
+        <td style="color:var(--muted)">${date}</td>
+      </tr>`;
+    }).join('');
+}
+
+// ─── TRADES ───────────────────────────────────────────────────────────────────
+async function loadTrades(id){
+  const tbody=document.getElementById('tradeBody');
+  try{
+    allTrades=await api('/api/quant/traders/'+id+'/trades?limit=100',{headers:hdr(false)});
+    if(!allTrades.length){tbody.innerHTML='<tr><td colspan="7" class="emptyMsg">No completed trades yet</td></tr>';document.getElementById('tradeCount').textContent='0 trades';return;}
+    let eq=10000;const eqSeries=[];
+    for(const t of [...allTrades].reverse()){eq+=(t.pnl||0);eqSeries.push(eq);}
+    drawEquity(eqSeries);
+    renderTradeTable(allTrades);
+  }catch(e){tbody.innerHTML='<tr><td colspan="7" class="emptyMsg">'+escapeHtml(e.message)+'</td></tr>';}
+}
+
+// ─── SIGNAL LOG ───────────────────────────────────────────────────────────────
+function pushSignalLog(sig){
+  signalLog.unshift(sig);
+  if(signalLog.length>50) signalLog=signalLog.slice(0,50);
+  renderSignalLog();
+  document.getElementById('sigCount').textContent=signalLog.length;
+}
+function renderSignalLog(){
+  const el=document.getElementById('sigLog');
+  if(!signalLog.length){el.innerHTML='<div class="emptyMsg">Signals appear as candles close</div>';return;}
+  el.innerHTML=signalLog.map(s=>{
+    let tag='',label='';
+    if(s.type==='entry'){
+      const bull=s.dir==='bullish';
+      tag=`<span class="sTag ${bull?'bull':'bear'}">${bull?'BULL':'BEAR'}</span>`;
+      label=`Entry @ $${s.price?s.price.toFixed(2):'—'}`;
+    } else {
+      tag='<span class="sTag exit">EXIT</span>';
+      label=`Close @ $${s.price?s.price.toFixed(2):'—'}`;
+    }
+    const dt=new Date(s.time).toLocaleTimeString();
+    return `<div class="sigItem">${tag}<span>${label}</span><span class="sTime">${dt}</span></div>`;
+  }).join('');
+}
+
+// ─── CHART DATA / DETECT ──────────────────────────────────────────────────────
+const VIEW=180;
+function updateChartStats(result){
+  const base=Math.max(0,chartCandles.length-VIEW);
+  const stats=RolexV3.computeStats(result.entries,result.exitIdxs,base);
+  document.getElementById('sigEntries').textContent=stats.entries;
+  document.getElementById('sigExits').textContent=stats.exits;
+  document.getElementById('sigBullBear').textContent=stats.bulls+' bull · '+stats.bears+' bear';
+  if(chartCandles.length){
+    const last=chartCandles[chartCandles.length-1];
+    document.getElementById('sigPrice').textContent='$'+last.close.toFixed(2);
+  }
+}
+
+function rerunChartDetection(){
+  if(!chartCandles.length) return;
+  const result=RolexV3.detectV3(chartCandles,strategyParams);
+  chartEntries=result.entries;
+  chartExits=result.exitIdxs;
+  chartEmaT=result.emaTrend;
+  chartEmaE=result.emaExit;
+  updateChartStats(result);
+  const base=Math.max(0,chartCandles.length-VIEW);
+  const recent=[...result.entries].filter(e=>e.i>=base).map(e=>({type:'entry',dir:e.dir,time:chartCandles[e.i].openTime,price:chartCandles[e.i].close}));
+  const recentX=[...result.exitIdxs].filter(i=>i>=base).map(i=>({type:'exit',time:chartCandles[i].openTime,price:chartCandles[i].close}));
+  signalLog=[...recent,...recentX].sort((a,b)=>b.time-a.time).slice(0,50);
+  renderSignalLog();
+  document.getElementById('sigCount').textContent=signalLog.length;
+  drawChart();
+}
+
+async function loadChart(coin,interval){
+  const sym=coin+'USDT';
+  document.getElementById('chartLabel').textContent=coin+' · '+interval;
+  document.getElementById('chartOverlay').style.display='';
+  document.getElementById('chartOverlay').textContent='Loading…';
+  const data=await fetchKlines(sym,interval,520);
+  chartCandles=data;
+  const result=RolexV3.detectV3(data,strategyParams);
+  chartEntries=result.entries;
+  chartExits=result.exitIdxs;
+  chartEmaT=result.emaTrend;
+  chartEmaE=result.emaExit;
+  updateChartStats(result);
+  const base=Math.max(0,data.length-VIEW);
+  const recent=[...result.entries].filter(e=>e.i>=base).map(e=>({type:'entry',dir:e.dir,time:data[e.i].openTime,price:data[e.i].close}));
+  const recentX=[...result.exitIdxs].filter(i=>i>=base).map(i=>({type:'exit',time:data[i].openTime,price:data[i].close}));
+  signalLog=[...recent,...recentX].sort((a,b)=>b.time-a.time).slice(0,50);
+  renderSignalLog();
+  document.getElementById('sigCount').textContent=signalLog.length;
+  document.getElementById('chartOverlay').style.display='none';
+  drawChart();
+}
+
+async function loadChartForBot(bot){
+  try{
+    await loadChart(bot.coinName||'BTC', bot.timeframe||'1h');
+  }catch(e){
+    document.getElementById('chartOverlay').textContent='Failed: '+e.message;
+    document.getElementById('chartOverlay').style.display='';
+  }
+}
+
+async function fetchKlines(symbol,interval,limit=520){
+  const url=`https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
+  const r=await fetch(url);
+  if(!r.ok) throw new Error('Binance HTTP '+r.status);
+  const d=await r.json();
+  return d.map(k=>({openTime:+k[0],closeTime:+k[6],open:+k[1],high:+k[2],low:+k[3],close:+k[4],volume:+k[5],t:new Date(+k[0])}));
+}
+
+// ─── CHART DRAW ───────────────────────────────────────────────────────────────
+function drawChart(){
+  const canvas=document.getElementById('chart');
+  const ctx=canvas.getContext('2d');
+  const rect=canvas.getBoundingClientRect();
+  canvas.width=Math.floor(rect.width*(window.devicePixelRatio||1));
+  canvas.height=Math.floor(rect.height*(window.devicePixelRatio||1));
+  const W=canvas.width,H=canvas.height;
+  ctx.clearRect(0,0,W,H);
+  if(!chartCandles.length){return;}
+  const start=Math.max(0,chartCandles.length-VIEW);
+  const slice=chartCandles.slice(start);
+  let mn=Infinity,mx=-Infinity;
+  for(const c of slice){mn=Math.min(mn,c.low);mx=Math.max(mx,c.high);}
+  const showEMA=document.getElementById('togEMA').checked;
+  if(showEMA){
+    for(let i=start;i<chartCandles.length;i++){
+      if(chartEmaT[i]!=null){mn=Math.min(mn,chartEmaT[i]);mx=Math.max(mx,chartEmaT[i]);}
+      if(chartEmaE[i]!=null){mn=Math.min(mn,chartEmaE[i]);mx=Math.max(mx,chartEmaE[i]);}
+    }
+  }
+  const pad=(mx-mn)*0.07||1;mn-=pad;mx+=pad;
+  const cw=Math.max(3,Math.floor(W/slice.length));
+  const gap=Math.max(1,Math.floor(cw*.15));
+  const bw=Math.max(1,cw-gap);
+  const yFor=p=>(1-((p-mn)/(mx-mn+1e-12)))*(H*.88)+H*.06;
+  // grid
+  ctx.strokeStyle='rgba(255,255,255,.05)';ctx.lineWidth=1;
+  for(let i=0;i<=5;i++){const y=H*.06+(H*.88)*(i/5);ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+  // EMA lines
+  if(showEMA){
+    const drawLine=(arr,col)=>{
+      ctx.strokeStyle=col;ctx.lineWidth=Math.ceil(1.5*(window.devicePixelRatio||1));
+      ctx.beginPath();let first=true;
+      for(let i=0;i<slice.length;i++){const v=arr[start+i];if(v==null){first=true;continue;}const x=i*cw+cw/2;if(first){ctx.moveTo(x,yFor(v));first=false;}else ctx.lineTo(x,yFor(v));}
+      ctx.stroke();
+    };
+    drawLine(chartEmaT,'rgba(108,99,255,.55)');
+    drawLine(chartEmaE,'rgba(100,255,218,.45)');
+  }
+  // Candles
+  const entryMap=new Map();for(const e of chartEntries)entryMap.set(e.i,e.dir);
+  const showE=document.getElementById('togEntries').checked;
+  const showX=document.getElementById('togExits').checked;
+  const dpr=window.devicePixelRatio||1;
+  for(let i=0;i<slice.length;i++){
+    const idx=start+i,c=slice[i],x=i*cw;
+    const up=c.close>=c.open;
+    const wCol=up?'rgba(0,230,118,.9)':'rgba(255,23,68,.9)';
+    ctx.strokeStyle=wCol;ctx.lineWidth=Math.max(1,Math.floor(1.2*dpr));
+    ctx.beginPath();ctx.moveTo(x+cw/2,yFor(c.high));ctx.lineTo(x+cw/2,yFor(c.low));ctx.stroke();
+    const top=Math.min(yFor(c.open),yFor(c.close));
+    const bh=Math.max(1,Math.abs(yFor(c.open)-yFor(c.close)));
+    ctx.fillStyle=up?'rgba(0,230,118,.3)':'rgba(255,23,68,.3)';
+    ctx.strokeStyle=wCol;ctx.lineWidth=1;
+    ctx.fillRect(x+gap,top,bw,bh);ctx.strokeRect(x+gap,top,bw,bh);
+    // Entry markers
+    if(showE&&entryMap.has(idx)){
+      const dir=entryMap.get(idx);const bull=dir==='bullish';
+      const col=bull?'rgba(100,255,218,.95)':'rgba(255,23,68,.95)';
+      const sz=7*dpr,cx=x+cw/2,y=bull?yFor(c.low)+14:yFor(c.high)-14;
+      ctx.fillStyle=col;ctx.beginPath();
+      if(bull){ctx.moveTo(cx,y-sz);ctx.lineTo(cx-sz,y+sz*.6);ctx.lineTo(cx+sz,y+sz*.6);}
+      else{ctx.moveTo(cx,y+sz);ctx.lineTo(cx-sz,y-sz*.6);ctx.lineTo(cx+sz,y-sz*.6);}
+      ctx.closePath();ctx.fill();
+    }
+    // Exit markers
+    if(showX&&chartExits.has(idx)){
+      const sz=6*dpr,cx=x+cw/2,cy=yFor(c.close);
+      ctx.strokeStyle='rgba(255,215,64,.9)';ctx.lineWidth=2;
+      ctx.beginPath();ctx.moveTo(cx-sz,cy-sz);ctx.lineTo(cx+sz,cy+sz);ctx.moveTo(cx-sz,cy+sz);ctx.lineTo(cx+sz,cy-sz);ctx.stroke();
+    }
+  }
+}
+
+// ─── EQUITY CURVE ─────────────────────────────────────────────────────────────
+function drawEquity(series){
+  const canvas=document.getElementById('equity');
+  const ctx=canvas.getContext('2d');
+  const rect=canvas.getBoundingClientRect();
+  canvas.width=Math.floor(rect.width*(window.devicePixelRatio||1));
+  canvas.height=Math.floor(rect.height*(window.devicePixelRatio||1));
+  const W=canvas.width,H=canvas.height;
+  ctx.clearRect(0,0,W,H);
+  if(series.length<2) return;
+  let mn=Math.min(...series),mx=Math.max(...series);
+  const pad=(mx-mn)*.1||1;mn-=pad;mx+=pad;
+  const xFor=i=>i/(series.length-1)*W;
+  const yFor=v=>(1-(v-mn)/(mx-mn+1e-12))*H*.9+H*.05;
+  const grad=ctx.createLinearGradient(0,0,0,H);
+  grad.addColorStop(0,'rgba(108,99,255,.35)');
+  grad.addColorStop(1,'rgba(108,99,255,.0)');
+  ctx.beginPath();ctx.moveTo(xFor(0),yFor(series[0]));
+  for(let i=1;i<series.length;i++)ctx.lineTo(xFor(i),yFor(series[i]));
+  ctx.lineTo(W,H);ctx.lineTo(0,H);ctx.closePath();
+  ctx.fillStyle=grad;ctx.fill();
+  ctx.strokeStyle='rgba(108,99,255,.8)';ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(xFor(0),yFor(series[0]));
+  for(let i=1;i<series.length;i++)ctx.lineTo(xFor(i),yFor(series[i]));
+  ctx.stroke();
+}
+
+// ─── TOGGLE / RESIZE / DASHBOARD BINDINGS ─────────────────────────────────────
+function bindDashboardControls(){
+  if(dashboardBound) return;
+  dashboardBound=true;
+
+  ['togEntries','togExits','togEMA'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.onchange=drawChart;
+  });
+  window.addEventListener('resize',drawChart);
+
+  const btnSettings=document.getElementById('btnSettings');
+  const setOverlay=document.getElementById('setOverlay');
+  const btnChartLoad=document.getElementById('btnChartLoad');
+  const btnRefresh=document.getElementById('btnRefresh');
+  const btnStopBot=document.getElementById('btnStopBot');
+
+  if(btnSettings) btnSettings.onclick=openSettings;
+  if(setOverlay) setOverlay.onclick=closeSettings;
+  if(btnChartLoad){
+    btnChartLoad.onclick=async()=>{
+      try{
+        await loadChart(document.getElementById('chartCoin').value,document.getElementById('chartTf').value);
+      }catch(e){
+        document.getElementById('chartOverlay').textContent='Failed: '+e.message;
+        document.getElementById('chartOverlay').style.display='';
+      }
+    };
+  }
+  document.querySelectorAll('.filterBtn').forEach(btn=>{
+    btn.onclick=()=>{
+      document.querySelectorAll('.filterBtn').forEach(b=>b.classList.remove('on'));
+      btn.classList.add('on');
+      tradeFilter=btn.dataset.filter;
+      renderTradeTable(allTrades);
+    };
+  });
+  if(btnRefresh){
+    btnRefresh.onclick=async()=>{
+      const currentTf=document.getElementById('chartTf').value;
+      await loadUserSettings();
+      remountSettingsPanel();
+      await loadBots();
+      if(activeBotId){
+        const bot=allBots.find(t=>t.id===activeBotId);
+        if(bot){
+          updateStats(bot);
+          await loadTrades(activeBotId);
+          await loadChart(bot.coinName||'BTC', currentTf);
+        }
+      }
+    };
+  }
+  if(btnStopBot){
+    btnStopBot.onclick=async()=>{
+      if(!activeBotId||!confirm('Stop this Rolex bot?')) return;
+      try{
+        await api('/api/quant/traders/'+activeBotId+'/stop',{method:'POST',headers:hdr()});
+        activeBotId=null;
+        btnStopBot.classList.add('hidden');
+        await loadBots();
+      }catch(e){ alert(e.message); }
+    };
+  }
+  
+  // Auto-refresh chart and signals every 30 seconds
+  setInterval(async()=>{
+    if(activeBotId){
+      const bot=allBots.find(t=>t.id===activeBotId);
+      if(bot){
+        await loadChartForBot(bot);
+        await reloadBotState();
+      }
+    }
+  },30000);
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+/.env
+/node_modules
+/package-lock.json
+*.db
+*.db-shm
+*.db-wal
+*.db.bak
+npm-debug.log*
+.market-server.lock
+__pycache__/
+*.pyc

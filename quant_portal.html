@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quant Portal — Market Physics Trader</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&display=swap');
+:root{--bg:#07090c;--panel:#0b0e13;--border:#141c26;--text:#a8bdd0;--dim:#324558;
+  --green:#00e676;--hl:#6c63ff;--red:#ff5252;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'JetBrains Mono',monospace;background:var(--bg);color:var(--text);
+  min-height:100vh;padding:28px 20px 48px;font-size:13px;max-width:720px;margin:0 auto;}
+h1{font-size:18px;font-weight:700;margin-bottom:4px;}
+.sub{color:var(--dim);font-size:11px;margin-bottom:24px;}
+a{color:var(--hl);}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:18px;margin-bottom:16px;}
+.panel h2{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin-bottom:12px;}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px;}
+label{font-size:11px;color:var(--dim);display:block;margin-bottom:4px;}
+input,select{width:100%;padding:8px 10px;border-radius:6px;border:1px solid var(--border);
+  background:#07090c;color:var(--text);font-family:inherit;font-size:12px;}
+button{padding:8px 14px;border-radius:6px;border:1px solid var(--border);background:var(--hl);
+  color:#fff;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;}
+button.secondary{background:transparent;color:var(--text);}
+button:disabled{opacity:.45;cursor:not-allowed;}
+.err{color:var(--red);font-size:11px;margin-top:6px;}
+.ok{color:var(--green);font-size:11px;margin-top:6px;}
+.tabs{display:flex;gap:8px;margin-bottom:14px;}
+.tabs button{background:transparent;color:var(--dim);}
+.tabs button.on{border-color:var(--hl);color:var(--hl);}
+pre{font-size:10px;overflow:auto;max-height:160px;padding:10px;background:#07090c;border-radius:6px;border:1px solid var(--border);}
+.hidden{display:none !important;}
+.trader-card{border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:10px;font-size:11px;}
+.trader-card strong{color:var(--text);}
+</style>
+</head>
+<body>
+<h1>Quant Portal</h1>
+<p class="sub">Per-user Hyperliquid keys (encrypted at rest), bots, optional Telegram. <a href="/">Home</a></p>
+
+<div id="authPanel" class="panel">
+  <h2>Account</h2>
+  <div id="loggedOut">
+    <div class="tabs">
+      <button type="button" class="on" id="tabLogin">Login</button>
+      <button type="button" id="tabReg">Register</button>
+    </div>
+    <div id="formLogin">
+      <div class="row"><div style="flex:1"><label>Email</label><input type="email" id="loginEmail" autocomplete="username"></div></div>
+      <div class="row"><div style="flex:1"><label>Password</label><input type="password" id="loginPass" autocomplete="current-password"></div></div>
+      <div class="row"><button type="button" id="btnLogin">Sign in</button></div>
+    </div>
+    <div id="formReg" class="hidden">
+      <div class="row"><div style="flex:1"><label>Email</label><input type="email" id="regEmail" autocomplete="username"></div></div>
+      <div class="row"><div style="flex:1"><label>Password (min 8)</label><input type="password" id="regPass" autocomplete="new-password"></div></div>
+      <div class="row"><button type="button" id="btnReg">Create account</button></div>
+    </div>
+  </div>
+  <div id="loggedIn" class="hidden">
+    <p id="meLine" style="margin-bottom:10px;font-size:12px;"></p>
+    <div class="row">
+      <button type="button" class="secondary" id="btnLogout">Sign out</button>
+    </div>
+  </div>
+  <div id="authMsg"></div>
+</div>
+
+<div id="appPanels" class="hidden">
+  <div class="panel">
+    <h2>Hyperliquid</h2>
+    <p style="font-size:11px;color:var(--dim);margin-bottom:12px;line-height:1.6;">
+      Keys are encrypted with <code>VAULT_MASTER_KEY</code> on the server. Anyone with DB + master key can decrypt — protect both.
+    </p>
+    <div class="row"><div style="flex:1"><label>Account address</label><input id="hlAddr" placeholder="0x..."></div></div>
+    <div class="row"><div style="flex:1"><label>API / wallet secret (stored encrypted)</label><input id="hlSecret" type="password" placeholder="0x..."></div></div>
+    <div class="row"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+      <input type="checkbox" id="hlTestnet" checked> Use testnet</label></div>
+    <div class="row"><button type="button" id="btnHlSave">Save credentials</button>
+      <button type="button" class="secondary" id="btnHlRefresh">Refresh status</button>
+      <button type="button" class="secondary" id="btnHlAccount">Fetch account snapshot</button></div>
+    <div id="hlMsg"></div>
+    <pre id="hlSnap" class="hidden"></pre>
+  </div>
+
+  <div class="panel">
+    <h2>Telegram</h2>
+    <p style="font-size:11px;color:var(--dim);margin-bottom:10px;">
+      Open your bot in Telegram and send <code>/link &lt;code&gt;</code> after requesting a code below.
+    </p>
+    <div class="row"><button type="button" id="btnTgCode">Request link code</button></div>
+    <div id="tgMsg"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Your traders</h2>
+    <div id="traderList"></div>
+    <h2 style="margin-top:18px;">New trader</h2>
+    <div class="row"><div style="flex:1"><label>Name</label><input id="tName" placeholder="My BTC v2 15m"></div></div>
+    <div class="row">
+      <div style="flex:1"><label>Timeframe</label>
+        <select id="tTf"><option>5m</option><option>15m</option><option selected>1h</option><option>4h</option><option>1d</option></select></div>
+      <div style="flex:1"><label>Strategy</label>
+        <select id="tStrat">
+          <option value="v1">v1</option>
+          <option value="v2">v2</option>
+          <option value="v3">Rolex (v3)</option>
+          <option value="v4" selected>V4 Physics</option>
+        </select></div>
+    </div>
+    <div class="row"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+      <input type="checkbox" id="tInvert"> Invert logic</label></div>
+    <div class="row"><div style="flex:1"><label>TP distance</label><input id="tTp" type="number" value="50"></div>
+      <div style="flex:1"><label>HL size USD</label><input id="tSz" type="number" value="100"></div></div>
+    <div class="row"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+      <input type="checkbox" id="tLive"> Hyperliquid live (real orders)</label></div>
+    <div class="row"><button type="button" id="btnCreateTrader">Create &amp; start</button>
+      <button type="button" class="secondary" id="btnReloadTraders">Reload list</button></div>
+    <div id="traderMsg"></div>
+  </div>
+</div>
+
+<script src="/rolex_api.js"></script>
+<script>
+const hdr = () => RolexAPI.hdr();
+const hdrPublic = () => RolexAPI.hdrPublic();
+const api = (path, opt) => RolexAPI.api(path, opt);
+
+function show(el, html, ok) {
+  el.innerHTML = html ? '<div class="' + (ok ? 'ok' : 'err') + '">' + html + '</div>' : '';
+}
+
+function setAuthed(on) {
+  document.getElementById('loggedOut').classList.toggle('hidden', on);
+  document.getElementById('loggedIn').classList.toggle('hidden', !on);
+  document.getElementById('appPanels').classList.toggle('hidden', !on);
+}
+
+async function refreshMe() {
+  const m = await api('/api/quant/me');
+  document.getElementById('meLine').textContent =
+    m.email + ' · HL: ' + (m.hyperliquid.configured ? (m.hyperliquid.testnet ? 'testnet' : 'mainnet') : 'not saved') +
+    ' · TG: ' + (m.telegramLinked ? 'linked' : 'not linked');
+  const st = m.hyperliquid;
+  if (st.configured) {
+    document.getElementById('hlAddr').value = st.accountAddress || '';
+    document.getElementById('hlTestnet').checked = !!st.testnet;
+  }
+}
+
+function renderTraders(rows) {
+  const el = document.getElementById('traderList');
+  if (!rows.length) { el.innerHTML = '<p style="color:var(--dim);font-size:11px;">No traders yet.</p>'; return; }
+  el.innerHTML = rows.map(t => {
+    const st = t.state || {};
+    const live = t.hlLiveMode === 1 || t.hlLiveMode === true;
+    return '<div class="trader-card"><strong>' + escapeHtml(t.name) + '</strong> · ' + t.timeframe + ' · ' + t.strategy +
+      (t.invertLogic ? ' ⇄' : '') + '<br>HL live: ' + live + ' · $' + (t.hlSizeUsd || 100) +
+      '<br>ID: <code>' + t.id + '</code> · running: ' + !!st.isRunning +
+      '<br><button type="button" class="stop-btn secondary" data-id="' + t.id + '" style="margin-top:8px;padding:4px 10px;font-size:10px;">Stop</button></div>';
+  }).join('');
+  el.querySelectorAll('.stop-btn').forEach(b => {
+    b.onclick = async () => {
+      if (!confirm('Stop this trader?')) return;
+      try {
+        await api('/api/quant/traders/' + b.dataset.id + '/stop', { method: 'POST' });
+        await loadTraders();
+      } catch (e) { alert(e.message); }
+    };
+  });
+}
+
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+async function loadTraders() {
+  const rows = await api('/api/quant/traders');
+  renderTraders(rows);
+}
+
+document.getElementById('tabLogin').onclick = () => {
+  document.getElementById('tabLogin').classList.add('on');
+  document.getElementById('tabReg').classList.remove('on');
+  document.getElementById('formLogin').classList.remove('hidden');
+  document.getElementById('formReg').classList.add('hidden');
+};
+document.getElementById('tabReg').onclick = () => {
+  document.getElementById('tabReg').classList.add('on');
+  document.getElementById('tabLogin').classList.remove('on');
+  document.getElementById('formReg').classList.remove('hidden');
+  document.getElementById('formLogin').classList.add('hidden');
+};
+
+document.getElementById('btnLogin').onclick = async () => {
+  const authMsg = document.getElementById('authMsg');
+  try {
+    const j = await api('/api/quant/auth/login', {
+      method: 'POST',
+      headers: hdrPublic(),
+      body: JSON.stringify({
+        email: document.getElementById('loginEmail').value,
+        password: document.getElementById('loginPass').value,
+      }),
+    });
+    RolexAPI.setToken(j.token);
+    setAuthed(true);
+    show(authMsg, '');
+    await refreshMe();
+    await loadTraders();
+  } catch (e) { show(authMsg, e.message, false); }
+};
+
+document.getElementById('btnReg').onclick = async () => {
+  const authMsg = document.getElementById('authMsg');
+  try {
+    const j = await api('/api/quant/auth/register', {
+      method: 'POST',
+      headers: hdrPublic(),
+      body: JSON.stringify({
+        email: document.getElementById('regEmail').value,
+        password: document.getElementById('regPass').value,
+      }),
+    });
+    RolexAPI.setToken(j.token);
+    setAuthed(true);
+    show(authMsg, '');
+    await refreshMe();
+    await loadTraders();
+  } catch (e) { show(authMsg, e.message, false); }
+};
+
+document.getElementById('btnLogout').onclick = () => {
+  RolexAPI.clearToken();
+  setAuthed(false);
+  document.getElementById('hlSnap').classList.add('hidden');
+};
+
+document.getElementById('btnHlSave').onclick = async () => {
+  const el = document.getElementById('hlMsg');
+  try {
+    await api('/api/quant/hyperliquid', {
+      method: 'POST',
+      body: JSON.stringify({
+        accountAddress: document.getElementById('hlAddr').value.trim(),
+        secretKey: document.getElementById('hlSecret').value.trim(),
+        testnet: document.getElementById('hlTestnet').checked,
+      }),
+    });
+    document.getElementById('hlSecret').value = '';
+    show(el, 'Saved.', true);
+    await refreshMe();
+  } catch (e) { show(el, e.message, false); }
+};
+
+document.getElementById('btnHlRefresh').onclick = async () => {
+  const el = document.getElementById('hlMsg');
+  try {
+    const s = await api('/api/quant/hyperliquid/status');
+    show(el, s.configured ? 'Configured (' + (s.testnet ? 'testnet' : 'mainnet') + ')' : 'Not configured', !!s.configured);
+    await refreshMe();
+  } catch (e) { show(el, e.message, false); }
+};
+
+document.getElementById('btnHlAccount').onclick = async () => {
+  const el = document.getElementById('hlMsg');
+  const pre = document.getElementById('hlSnap');
+  try {
+    const snap = await api('/api/quant/hyperliquid/account');
+    pre.textContent = JSON.stringify(snap, null, 2);
+    pre.classList.remove('hidden');
+    show(el, 'Snapshot loaded.', true);
+  } catch (e) {
+    pre.classList.add('hidden');
+    show(el, e.message, false);
+  }
+};
+
+document.getElementById('btnTgCode').onclick = async () => {
+  const el = document.getElementById('tgMsg');
+  try {
+    const j = await api('/api/quant/telegram/link-code', { method: 'POST', body: '{}' });
+    show(el, 'Your code: <strong>' + j.code + '</strong> (10 min). In Telegram: <code>/link ' + j.code + '</code>', true);
+  } catch (e) { show(el, e.message, false); }
+};
+
+document.getElementById('btnCreateTrader').onclick = async () => {
+  const el = document.getElementById('traderMsg');
+  try {
+    await api('/api/quant/traders', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: document.getElementById('tName').value || 'Trader',
+        timeframe: document.getElementById('tTf').value,
+        strategy: document.getElementById('tStrat').value,
+        invertLogic: document.getElementById('tInvert').checked,
+        tpDistance: parseInt(document.getElementById('tTp').value, 10) || 50,
+        hlLiveMode: document.getElementById('tLive').checked,
+        hlSizeUsd: parseFloat(document.getElementById('tSz').value) || 100,
+      }),
+    });
+    show(el, 'Trader started.', true);
+    await loadTraders();
+  } catch (e) { show(el, e.message, false); }
+};
+
+document.getElementById('btnReloadTraders').onclick = () => loadTraders().catch(e => alert(e.message));
+
+(async function boot() {
+  RolexAPI.checkServer();
+  const me = await RolexAPI.restoreSession();
+  if (!me) return;
+  setAuthed(true);
+  refreshMe().then(loadTraders).catch(() => {
+    RolexAPI.clearToken();
+    setAuthed(false);
+  });
+})();
+</script>
+</body>
+</html>

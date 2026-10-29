@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Market Physics Trader</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&display=swap');
+:root{--bg:#07090c;--panel:#0b0e13;--border:#141c26;--border2:#1c2a3a;--text:#a8bdd0;--dim:#324558;
+  --green:#00e676;--green2:rgba(0,230,118,.1);--blue:#40c4ff;--blue2:rgba(64,196,255,.1);
+  --teal:#64ffda;--teal2:rgba(100,255,218,.1);--hl:#6c63ff;--hl2:rgba(108,99,255,.12);
+  --amber:#ffd740;--amber2:rgba(255,215,64,.1);}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'JetBrains Mono',monospace;background:var(--bg);color:var(--text);
+  min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:40px 24px;font-size:13px;}
+.logo{font-size:26px;font-weight:700;letter-spacing:-1px;margin-bottom:6px;text-align:center;}
+.logo .m{color:var(--teal);}.logo .p{color:var(--hl);}.logo .t{color:var(--text);}
+.tagline{color:var(--dim);font-size:11px;letter-spacing:.1em;text-transform:uppercase;text-align:center;margin-bottom:44px;}
+.status-row{display:flex;gap:12px;margin-bottom:44px;justify-content:center;flex-wrap:wrap;}
+.chip{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);
+  padding:5px 12px;border:1px solid var(--border);border-radius:20px;background:var(--panel);}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--dim);}
+.dot.on{background:var(--green);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.grid{display:grid;grid-template-columns:repeat(2,320px);gap:14px;width:100%;max-width:660px;}
+@media(max-width:680px){.grid{grid-template-columns:1fr;max-width:400px;}}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:10px;
+  padding:22px;text-decoration:none;color:var(--text);display:block;
+  transition:border-color .2s,transform .15s;position:relative;overflow:hidden;}
+.card::before{content:'';position:absolute;inset:0;opacity:0;transition:opacity .2s;border-radius:inherit;}
+.card:hover{transform:translateY(-2px);}
+.card:hover::before{opacity:1;}
+.card.hl{border-color:#2a2560;}.card.hl::before{background:var(--hl2);}.card.hl:hover{border-color:var(--hl);}
+.card.gr{border-color:#0d3322;}.card.gr::before{background:var(--green2);}.card.gr:hover{border-color:var(--green);}
+.card.bl{border-color:#0d2233;}.card.bl::before{background:var(--blue2);}.card.bl:hover{border-color:var(--blue);}
+.card.am{border-color:#332e10;}.card.am::before{background:var(--amber2);}.card.am:hover{border-color:var(--amber);}
+.icon{font-size:24px;margin-bottom:12px;}
+.title{font-size:13px;font-weight:700;margin-bottom:5px;}
+.card.hl .title{color:var(--hl);}.card.gr .title{color:var(--green);}
+.card.bl .title{color:var(--blue);}.card.am .title{color:var(--amber);}
+.desc{font-size:11px;color:var(--dim);line-height:1.7;}
+.port{margin-top:12px;font-size:10px;color:var(--dim);padding:3px 8px;
+  background:#07090c;border-radius:4px;display:inline-block;border:1px solid var(--border);}
+.footer{margin-top:48px;font-size:10px;color:var(--dim);text-align:center;line-height:1.9;}
+.footer a{color:var(--hl);text-decoration:none;}.footer a:hover{text-decoration:underline;}
+</style>
+</head>
+<body>
+<div class="logo"><span class="m">MARKET</span> <span class="p">PHYSICS</span> <span class="t">TRADER</span></div>
+<div class="tagline">BTC Strategy Lab · Hyperliquid Live Trading · Telegram Signals</div>
+
+<div class="status-row">
+  <div class="chip"><div class="dot on" id="dT"></div><span id="lT">Trader :3000</span></div>
+  <div class="chip"><div class="dot" id="dL"></div><span id="lL">Lab :3008</span></div>
+  <div class="chip"><div class="dot" id="dH"></div><span id="lH">Hyperliquid</span></div>
+</div>
+
+<div class="grid">
+  <a class="card hl" href="/quant_portal.html" style="grid-column:1/-1;max-width:660px;margin:0 auto;">
+    <div class="icon">👤</div>
+    <div class="title">Quant Portal (multi-user)</div>
+    <div class="desc">Register, save your Hyperliquid keys (encrypted), configure bots per account,
+      optional Telegram link — each user’s live trading uses their own wallet.</div>
+    <div class="port">:3000/quant_portal.html</div>
+  </a>
+  <a class="card hl" href="/hyperliquid_setup.html">
+    <div class="icon">⚡</div>
+    <div class="title">Hyperliquid Setup</div>
+    <div class="desc">Connect wallet, view balance &amp; positions, place manual orders,
+      enable automated live trading with real TP + SL per strategy bot.</div>
+    <div class="port">:3000/hyperliquid_setup.html</div>
+  </a>
+  <a class="card gr" href="/MarketPhysicsTraderDashboard.html">
+    <div class="icon">📊</div>
+    <div class="title">Trader Dashboard</div>
+    <div class="desc">Monitor all active paper and live traders, including V4 physics
+      scores, theory self-tests, and lab backtest results as they land.</div>
+    <div class="port">:3000/MarketPhysicsTraderDashboard.html · :3000/v4</div>
+  </a>
+  <a class="card hl" href="/RolexHome.html" style="grid-column:1/-1;max-width:660px;margin:0 auto;">
+    <div class="icon">⌚</div>
+    <div class="title">Rolex Automation (v3)</div>
+    <div class="desc">Subscribe, automate multi-coin trades, tweak BULL/BEAR MOM ELITE indicator inputs like TradingView,
+      and monitor live P&amp;L on the <a href="/RolexStrategy.html" style="color:var(--teal)">trading dashboard</a>.</div>
+    <div class="port">:3000/RolexHome.html · :3000/RolexStrategy.html</div>
+  </a>
+  <a class="card bl" href="http://localhost:3008/strategyLab.html" target="_blank">
+    <div class="icon">🔬</div>
+    <div class="title">Strategy Lab</div>
+    <div class="desc">Interactive BTC chart and market physics signal replay.
+      Test v1/v2/v4 strategies across timeframes before going live.</div>
+    <div class="port">:3008/strategyLab.html</div>
+  </a>
+  <a class="card am" href="http://localhost:3008/StrategyLabManager.html" target="_blank">
+    <div class="icon">🧪</div>
+    <div class="title">Lab Manager</div>
+    <div class="desc">Mass backtests across all permutations, leaderboard of top
+      performers, and one-click launch of the best models as live feeds.</div>
+    <div class="port">:3008/StrategyLabManager.html</div>
+  </a>
+</div>
+
+<div class="footer">
+  Start with <code>npm start</code> &nbsp;·&nbsp; Configure in <code>.env</code>
+  (see <code>lab_server_configuration.txt</code>)<br>
+  New to Hyperliquid?
+  <a href="https://app.hyperliquid-testnet.xyz" target="_blank">Testnet faucet →</a>
+  &nbsp;·&nbsp;
+  <a href="https://app.hyperliquid.xyz" target="_blank">Mainnet app →</a>
+</div>
+
+<script>
+async function ping() {
+  try {
+    const r = await fetch('/api/hyperliquid/status');
+    const d = await r.json();
+    document.getElementById('dT').className = 'dot on';
+    document.getElementById('lT').textContent = 'Trader :3000 ✓';
+    if (d.configured) {
+      document.getElementById('dH').className = 'dot on';
+      document.getElementById('lH').textContent = 'HL ' + (d.testnet ? 'testnet' : 'mainnet') + ' ✓';
+    }
+  } catch {}
+  try {
+    const r = await fetch('http://localhost:3008/api/lab/leaderboard?timeframe=1h');
+    if (r.ok) { document.getElementById('dL').className='dot on'; document.getElementById('lL').textContent='Lab :3008 ✓'; }
+  } catch {}
+}
+ping(); setInterval(ping, 10000);
+</script>
+</body>
+</html>

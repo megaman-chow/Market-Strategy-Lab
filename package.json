@@ -1,0 +1,45 @@
+{
+  "name": "market-physics-trader",
+  "version": "2.0.0",
+  "description": "BTC market physics trading lab — strategy backtesting, live trading, and Hyperliquid integration",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "stop": "node scripts/stop_server.js",
+    "dev": "nodemon server.js",
+    "trader": "node trader_engine_manager.js",
+    "rolex": "node trader_engine_manager.js",
+    "rolex:test": "node rolex_smoke_test.js",
+    "rolex:api": "node rolex_api_test.js",
+    "lab": "node lab_server.js",
+    "dev:trader": "nodemon trader_engine_manager.js",
+    "dev:lab": "nodemon lab_server.js",
+    "pm2:start": "pm2 start ecosystem.config.cjs",
+    "pm2:stop": "pm2 stop market-physics-trader",
+    "pm2:restart": "pm2 restart market-physics-trader",
+    "pm2:logs": "pm2 logs market-physics-trader",
+    "pm2:delete": "pm2 delete market-physics-trader",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "@nktkas/hyperliquid": "^0.32.1",
+    "axios": "^1.13.6",
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "ethers": "^6.16.0",
+    "express": "^4.18.2",
+    "node-binance-api": "^0.13.1",
+    "node-telegram-bot-api": "^0.67.0",
+    "sqlite3": "^5.1.6",
+    "telegraf": "^4.15.0",
+    "uuid": "^9.0.1",
+    "ws": "^8.14.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1",
+    "pm2": "^5.4.3"
+  },
+  "private": true
+}

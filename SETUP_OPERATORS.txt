@@ -1,0 +1,44 @@
+MARKET PHYSICS TRADER — OPERATOR SETUP (multi-user / production-minded)
+=======================================================================
+
+WHAT "PROFITABLE" MEANS HERE
+----------------------------
+This software executes a rules-based strategy. Profit depends on markets, fees,
+slippage, and whether your chosen configs edge out costs. No code change can
+guarantee profit. Treat live mainnet as capital at risk.
+
+FAST LIVE (WHAT WE OPTIMIZED)
+-----------------------------
+- By default the trader uses Binance USD-M FUTURES kline WebSockets: you get each
+  CLOSED bar shortly after it completes, instead of waiting for the next REST poll.
+- A slow REST poll still runs as a backup (LIVE_REST_FALLBACK_MS, default 2 min).
+- Set LIVE_KLINE_WS=false if you must disable WebSockets (firewall, etc.).
+
+SAFETY FOR YOU AND OTHER USERS ON THE SAME SERVER
+-------------------------------------------------
+- Legacy flow: env HYPERLIQUID_* + /hyperliquid_setup.html = one shared HL wallet
+  for all "global" traders in that process.
+- Quant Portal (/quant_portal.html): each registered user saves their own HL keys
+  (AES-256-GCM with VAULT_MASTER_KEY) and runs bots tied to their wallet. Still one
+  Node process; isolate tenants by protecting trading.db, .env, and backups.
+- HL_KILL_SWITCH=true  → blocks opening NEW risk on HL (emergency stop).
+- HL_MAX_ORDER_USD=250 → caps each live order size (per trader request is clamped).
+- Run under PM2:  npm run pm2:start   (see package.json).
+
+QUANT PORTAL ENV
+----------------
+- JWT_SECRET (min 16 chars) — web session tokens.
+- VAULT_MASTER_KEY — 64 hex chars; loss = cannot decrypt stored keys; leak = keys recoverable from DB.
+- TELEGRAM_BOT_TOKEN — users link DMs via /link <code> after requesting a code in the portal.
+
+RECOMMENDED ROLLOUT
+-------------------
+1) Testnet + paper dashboards until fills, TP/SL, and trailing look correct.
+2) Mainnet with HL_MAX_ORDER_USD small; one trader, HL_KILL_SWITCH ready.
+3) Scale size only after forward results match expectations.
+
+FILES
+-----
+- .env                          — real secrets (never commit)
+- lab_server_configuration.txt  — template of all variables
+- ecosystem.config.cjs          — PM2 process definition
